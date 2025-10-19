@@ -17,19 +17,19 @@ limitations under the License.
 package controller
 
 import (
-	"github.com/crossplane/crossplane-runtime/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplane/provider-template/internal/controller/config"
 	"github.com/crossplane/provider-template/internal/controller/mytype"
 )
 
-// Setup creates all Template controllers with the supplied logger and adds them to
+// SetupGated creates all Template controllers with safe-start support and adds them to
 // the supplied manager.
-func Setup(mgr ctrl.Manager, o controller.Options) error {
+func SetupGated(mgr ctrl.Manager, o controller.Options) error {
 	for _, setup := range []func(ctrl.Manager, controller.Options) error{
 		config.Setup,
-		mytype.Setup,
+		mytype.SetupGated,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err
