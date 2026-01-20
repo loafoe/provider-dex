@@ -22,6 +22,7 @@ import (
 
 	"github.com/crossplane/provider-dex/internal/controller/client"
 	"github.com/crossplane/provider-dex/internal/controller/config"
+	"github.com/crossplane/provider-dex/internal/controller/discovery"
 )
 
 // SetupGated creates all Dex controllers with safe-start support and adds them to
@@ -30,6 +31,7 @@ func SetupGated(mgr ctrl.Manager, o controller.Options) error {
 	for _, setup := range []func(ctrl.Manager, controller.Options) error{
 		config.Setup,
 		client.SetupGated,
+		discovery.SetupGated,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err

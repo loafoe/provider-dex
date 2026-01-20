@@ -199,3 +199,13 @@ func (c *Client) ListClients(ctx context.Context) ([]*api.ClientInfo, error) {
 
 	return resp.Clients, nil
 }
+
+// GetDiscovery retrieves OIDC discovery information from Dex.
+func (c *Client) GetDiscovery(ctx context.Context) (*api.DiscoveryResp, error) {
+	resp, err := c.dex.GetDiscovery(ctx, &api.DiscoveryReq{})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get discovery")
+	}
+
+	return resp, nil
+}

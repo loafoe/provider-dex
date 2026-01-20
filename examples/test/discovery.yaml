@@ -1,0 +1,13 @@
+# Test Discovery resource
+apiVersion: oauth.dex.crossplane.io/v1alpha1
+kind: Discovery
+metadata:
+  name: dex-discovery
+  namespace: default
+spec:
+  forProvider: {}
+  providerConfigRef:
+    name: dex-test
+    kind: ClusterProviderConfig
+  managementPolicies:
+    - Observe

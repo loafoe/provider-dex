@@ -6,6 +6,7 @@
 ## Features
 
 - Manage Dex OAuth2 clients as Kubernetes resources
+- Observe OIDC discovery information from Dex
 - Support for both namespace-scoped `ProviderConfig` and cluster-scoped `ClusterProviderConfig`
 - TLS/mTLS authentication support for secure gRPC connections
 - Automatic client secret generation with connection secret support
@@ -60,6 +61,47 @@ spec:
 When `writeConnectionSecretToRef` is specified, the provider writes:
 - `clientId` - The OAuth2 client ID
 - `clientSecret` - The generated or provided client secret
+
+### Discovery
+
+The `Discovery` resource is an **observe-only** resource that fetches OIDC discovery information from Dex.
+
+```yaml
+apiVersion: oauth.dex.crossplane.io/v1alpha1
+kind: Discovery
+metadata:
+  name: dex-discovery
+  namespace: default
+spec:
+  forProvider: {}
+  providerConfigRef:
+    name: dex-config
+    kind: ClusterProviderConfig
+  managementPolicies:
+    - Observe
+```
+
+#### Observed Fields
+
+The discovery information is available in `status.atProvider`:
+
+| Field | Description |
+|-------|-------------|
+| `issuer` | OIDC issuer URL |
+| `authorizationEndpoint` | Authorization endpoint URL |
+| `tokenEndpoint` | Token endpoint URL |
+| `jwksUri` | JSON Web Key Set URL |
+| `userinfoEndpoint` | Userinfo endpoint URL |
+| `deviceAuthorizationEndpoint` | Device authorization endpoint URL |
+| `introspectionEndpoint` | Token introspection endpoint URL |
+| `grantTypesSupported` | Supported grant types |
+| `responseTypesSupported` | Supported response types |
+| `subjectTypesSupported` | Supported subject types |
+| `idTokenSigningAlgValuesSupported` | Supported ID token signing algorithms |
+| `codeChallengeMethodsSupported` | Supported PKCE code challenge methods |
+| `scopesSupported` | Supported scopes |
+| `tokenEndpointAuthMethodsSupported` | Supported token endpoint auth methods |
+| `claimsSupported` | Supported claims |
 
 ### ProviderConfig / ClusterProviderConfig
 
