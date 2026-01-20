@@ -15,4 +15,4 @@ limitations under the License.
 package version
 
 // Version will be overridden with the current version at build time using the -X linker flag
-var Version = "1.0.0"
+var Version = "1.2.0"
