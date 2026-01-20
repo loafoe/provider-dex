@@ -1,0 +1,7 @@
+# ClusterProviderConfig for testing - no TLS (insecure, for dev only)
+apiVersion: dex.crossplane.io/v1alpha1
+kind: ClusterProviderConfig
+metadata:
+  name: dex-test
+spec:
+  endpoint: "dex.iam-dex.svc.cluster.local:5557"

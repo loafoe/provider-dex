@@ -1,0 +1,41 @@
+# Patch to enable Dex gRPC API
+# This needs to be added to the Dex configuration (secret: dex in namespace: iam-dex)
+#
+# Add the following to the Dex config.yaml:
+#
+# grpc:
+#   addr: 0.0.0.0:5557
+#   # For TLS (recommended):
+#   # tlsCert: /etc/dex/tls/tls.crt
+#   # tlsKey: /etc/dex/tls/tls.key
+#   # tlsClientCA: /etc/dex/tls/ca.crt
+#
+# Then update the Dex deployment to:
+# 1. Add port 5557 to the container
+# 2. Add port 5557 to the service
+# 3. Mount TLS certificates if using mTLS
+
+---
+# Example Service patch to add gRPC port
+apiVersion: v1
+kind: Service
+metadata:
+  name: dex
+  namespace: iam-dex
+spec:
+  ports:
+  - appProtocol: http
+    name: http
+    port: 5556
+    protocol: TCP
+    targetPort: http
+  - appProtocol: http
+    name: telemetry
+    port: 5558
+    protocol: TCP
+    targetPort: telemetry
+  - appProtocol: grpc
+    name: grpc
+    port: 5557
+    protocol: TCP
+    targetPort: 5557

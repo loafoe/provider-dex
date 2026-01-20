@@ -1,38 +1,64 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: default
----
-apiVersion: v1
-kind: Secret
-metadata:
-  namespace: default
-  name: example-provider-secret
-type: Opaque
-data:
-  credentials: QkFTRTY0RU5DT0RFRF9QUk9WSURFUl9DUkVEUwo=
----
-apiVersion: template.crossplane.io/v1alpha1
+# Example ProviderConfig for Dex provider
+# This configures the connection to a Dex gRPC API endpoint
+
+# Namespace-scoped ProviderConfig (for use with namespace-scoped Client resources)
+apiVersion: dex.crossplane.io/v1alpha1
 kind: ProviderConfig
 metadata:
-  name: example
+  name: dex-config
   namespace: default
 spec:
-  credentials:
-    source: Secret
-    secretRef:
-      namespace: default
-      name: example-provider-secret
-      key: credentials
+  # Dex gRPC API endpoint
+  endpoint: "dex.iam-dex.svc.cluster.local:5557"
+  # TLS configuration for mTLS authentication
+  tls:
+    # CA certificate to verify the Dex server
+    caCert:
+      name: dex-grpc-tls
+      namespace: iam-dex
+      key: ca.crt
+    # Client certificate for mTLS
+    clientCert:
+      name: dex-grpc-tls
+      namespace: iam-dex
+      key: tls.crt
+    # Client private key for mTLS
+    clientKey:
+      name: dex-grpc-tls
+      namespace: iam-dex
+      key: tls.key
 ---
-apiVersion: template.crossplane.io/v1alpha1
+# Cluster-scoped ProviderConfig (can be referenced from any namespace)
+apiVersion: dex.crossplane.io/v1alpha1
 kind: ClusterProviderConfig
 metadata:
-  name: example
+  name: dex-cluster-config
 spec:
-  credentials:
-    source: Secret
-    secretRef:
-      namespace: default
-      name: example-provider-secret
-      key: credentials
+  # Dex gRPC API endpoint
+  endpoint: "dex.iam-dex.svc.cluster.local:5557"
+  # TLS configuration for mTLS authentication
+  tls:
+    # CA certificate to verify the Dex server
+    caCert:
+      name: dex-grpc-tls
+      namespace: iam-dex
+      key: ca.crt
+    # Client certificate for mTLS
+    clientCert:
+      name: dex-grpc-tls
+      namespace: iam-dex
+      key: tls.crt
+    # Client private key for mTLS
+    clientKey:
+      name: dex-grpc-tls
+      namespace: iam-dex
+      key: tls.key
+---
+# Example ProviderConfig without TLS (for development/testing only)
+apiVersion: dex.crossplane.io/v1alpha1
+kind: ClusterProviderConfig
+metadata:
+  name: dex-insecure
+spec:
+  endpoint: "dex.iam-dex.svc.cluster.local:5557"
+  # No TLS - insecure connection (not recommended for production)

@@ -1,0 +1,18 @@
+# Test Client resource
+apiVersion: oauth.dex.crossplane.io/v1alpha1
+kind: Client
+metadata:
+  name: test-client
+  namespace: default
+spec:
+  forProvider:
+    id: test-client
+    name: "Test Client"
+    redirectURIs:
+      - "http://localhost:8080/callback"
+    public: false
+  providerConfigRef:
+    name: dex-test
+    kind: ClusterProviderConfig
+  writeConnectionSecretToRef:
+    name: test-client-credentials

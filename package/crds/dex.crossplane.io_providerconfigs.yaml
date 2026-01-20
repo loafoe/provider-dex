@@ -4,32 +4,31 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: clusterproviderconfigs.template.crossplane.io
+  name: providerconfigs.dex.crossplane.io
 spec:
-  group: template.crossplane.io
+  group: dex.crossplane.io
   names:
     categories:
     - crossplane
     - provider
-    - template
-    kind: ClusterProviderConfig
-    listKind: ClusterProviderConfigList
-    plural: clusterproviderconfigs
-    singular: clusterproviderconfig
-  scope: Cluster
+    - dex
+    kind: ProviderConfig
+    listKind: ProviderConfigList
+    plural: providerconfigs
+    singular: providerconfig
+  scope: Namespaced
   versions:
   - additionalPrinterColumns:
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
-    - jsonPath: .spec.credentials.secretRef.name
-      name: SECRET-NAME
-      priority: 1
+    - jsonPath: .spec.endpoint
+      name: ENDPOINT
       type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: A ClusterProviderConfig configures a Template provider.
+        description: A ProviderConfig configures a Dex provider connection.
         properties:
           apiVersion:
             description: |-
@@ -49,36 +48,18 @@ spec:
           metadata:
             type: object
           spec:
+            description: ProviderConfigSpec defines the desired state of a ProviderConfig.
             properties:
-              credentials:
-                description: Credentials required to authenticate to this provider.
+              endpoint:
+                description: Endpoint is the Dex gRPC API endpoint (e.g., "dex.iam-dex.svc.cluster.local:5557").
+                type: string
+              tls:
+                description: TLS configures TLS/mTLS for the Dex gRPC connection.
                 properties:
-                  env:
+                  caCert:
                     description: |-
-                      Env is a reference to an environment variable that contains credentials
-                      that must be used to connect to the provider.
-                    properties:
-                      name:
-                        description: Name is the name of an environment variable.
-                        type: string
-                    required:
-                    - name
-                    type: object
-                  fs:
-                    description: |-
-                      Fs is a reference to a filesystem location that contains credentials that
-                      must be used to connect to the provider.
-                    properties:
-                      path:
-                        description: Path is a filesystem path.
-                        type: string
-                    required:
-                    - path
-                    type: object
-                  secretRef:
-                    description: |-
-                      A SecretRef is a reference to a secret key that contains the credentials
-                      that must be used to connect to the provider.
+                      CACert is a reference to a secret containing the CA certificate
+                      to verify the Dex server's certificate.
                     properties:
                       key:
                         description: The key to select.
@@ -94,20 +75,52 @@ spec:
                     - name
                     - namespace
                     type: object
-                  source:
-                    description: Source of the provider credentials.
-                    enum:
-                    - None
-                    - Secret
-                    - InjectedIdentity
-                    - Environment
-                    - Filesystem
-                    type: string
-                required:
-                - source
+                  clientCert:
+                    description: |-
+                      ClientCert is a reference to a secret containing the client certificate
+                      for mTLS authentication.
+                    properties:
+                      key:
+                        description: The key to select.
+                        type: string
+                      name:
+                        description: Name of the secret.
+                        type: string
+                      namespace:
+                        description: Namespace of the secret.
+                        type: string
+                    required:
+                    - key
+                    - name
+                    - namespace
+                    type: object
+                  clientKey:
+                    description: |-
+                      ClientKey is a reference to a secret containing the client private key
+                      for mTLS authentication.
+                    properties:
+                      key:
+                        description: The key to select.
+                        type: string
+                      name:
+                        description: Name of the secret.
+                        type: string
+                      namespace:
+                        description: Namespace of the secret.
+                        type: string
+                    required:
+                    - key
+                    - name
+                    - namespace
+                    type: object
+                  insecureSkipVerify:
+                    description: |-
+                      InsecureSkipVerify skips TLS certificate verification.
+                      Not recommended for production use.
+                    type: boolean
                 type: object
             required:
-            - credentials
+            - endpoint
             type: object
           status:
             description: A ProviderConfigStatus defines the status of a Provider.

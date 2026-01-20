@@ -1,0 +1,85 @@
+# Example Dex OAuth2 Client resources
+
+# Basic client with namespace-scoped ProviderConfig
+apiVersion: oauth.dex.crossplane.io/v1alpha1
+kind: Client
+metadata:
+  name: my-web-app
+  namespace: default
+spec:
+  forProvider:
+    # Client ID (optional - defaults to metadata.name if not specified)
+    id: my-web-app
+    # Human-readable name
+    name: "My Web Application"
+    # Redirect URIs for OAuth2 flow
+    redirectURIs:
+      - "https://myapp.example.com/callback"
+      - "https://myapp.example.com/oauth/callback"
+    # Not a public client (has a secret)
+    public: false
+  providerConfigRef:
+    name: dex-config
+    kind: ProviderConfig
+---
+# Public client (e.g., for SPA or mobile app) with ClusterProviderConfig
+apiVersion: oauth.dex.crossplane.io/v1alpha1
+kind: Client
+metadata:
+  name: my-spa
+  namespace: default
+spec:
+  forProvider:
+    id: my-spa-client
+    name: "My Single Page Application"
+    redirectURIs:
+      - "http://localhost:3000/callback"
+      - "https://spa.example.com/callback"
+    # Public client - no secret required
+    public: true
+  providerConfigRef:
+    name: dex-cluster-config
+    kind: ClusterProviderConfig
+---
+# Client with trusted peers (for token exchange)
+apiVersion: oauth.dex.crossplane.io/v1alpha1
+kind: Client
+metadata:
+  name: backend-service
+  namespace: default
+spec:
+  forProvider:
+    id: backend-service
+    name: "Backend Service"
+    redirectURIs:
+      - "https://backend.example.com/callback"
+    # Allow my-web-app to exchange tokens on behalf of this client
+    trustedPeers:
+      - my-web-app
+    public: false
+    logoURL: "https://example.com/logo.png"
+  providerConfigRef:
+    name: dex-cluster-config
+    kind: ClusterProviderConfig
+---
+# Client with secret from existing Kubernetes secret
+apiVersion: oauth.dex.crossplane.io/v1alpha1
+kind: Client
+metadata:
+  name: external-app
+  namespace: default
+spec:
+  forProvider:
+    id: external-app
+    name: "External Application"
+    redirectURIs:
+      - "https://external.example.com/callback"
+    # Reference to existing secret containing the client secret
+    secretRef:
+      name: external-app-credentials
+      namespace: default
+      key: client-secret
+    public: false
+  providerConfigRef:
+    name: dex-cluster-config
+    kind: ClusterProviderConfig

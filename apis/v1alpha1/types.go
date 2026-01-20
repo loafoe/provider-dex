@@ -11,18 +11,38 @@ type ProviderConfigStatus struct {
 	xpv1.ProviderConfigStatus `json:",inline"`
 }
 
-// ProviderCredentials required to authenticate.
-type ProviderCredentials struct {
-	// Source of the provider credentials.
-	// +kubebuilder:validation:Enum=None;Secret;InjectedIdentity;Environment;Filesystem
-	Source xpv1.CredentialsSource `json:"source"`
+// TLSConfig configures TLS for the Dex gRPC connection.
+type TLSConfig struct {
+	// CACert is a reference to a secret containing the CA certificate
+	// to verify the Dex server's certificate.
+	// +optional
+	CACert *xpv1.SecretKeySelector `json:"caCert,omitempty"`
 
-	xpv1.CommonCredentialSelectors `json:",inline"`
+	// ClientCert is a reference to a secret containing the client certificate
+	// for mTLS authentication.
+	// +optional
+	ClientCert *xpv1.SecretKeySelector `json:"clientCert,omitempty"`
+
+	// ClientKey is a reference to a secret containing the client private key
+	// for mTLS authentication.
+	// +optional
+	ClientKey *xpv1.SecretKeySelector `json:"clientKey,omitempty"`
+
+	// InsecureSkipVerify skips TLS certificate verification.
+	// Not recommended for production use.
+	// +optional
+	InsecureSkipVerify bool `json:"insecureSkipVerify,omitempty"`
 }
 
+// ProviderConfigSpec defines the desired state of a ProviderConfig.
 type ProviderConfigSpec struct {
-	// Credentials required to authenticate to this provider.
-	Credentials ProviderCredentials `json:"credentials"`
+	// Endpoint is the Dex gRPC API endpoint (e.g., "dex.iam-dex.svc.cluster.local:5557").
+	// +kubebuilder:validation:Required
+	Endpoint string `json:"endpoint"`
+
+	// TLS configures TLS/mTLS for the Dex gRPC connection.
+	// +optional
+	TLS *TLSConfig `json:"tls,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -30,9 +50,9 @@ type ProviderConfigSpec struct {
 
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:printcolumn:name="SECRET-NAME",type="string",JSONPath=".spec.credentials.secretRef.name",priority=1
-// +kubebuilder:resource:scope=Namespaced,categories={crossplane,provider,template}
-// A ProviderConfig configures a Helm 'provider', i.e. a connection to a particular
+// +kubebuilder:printcolumn:name="ENDPOINT",type="string",JSONPath=".spec.endpoint"
+// +kubebuilder:resource:scope=Namespaced,categories={crossplane,provider,dex}
+// A ProviderConfig configures a Dex provider connection.
 type ProviderConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -57,7 +77,7 @@ type ProviderConfigList struct {
 // +kubebuilder:printcolumn:name="CONFIG-NAME",type="string",JSONPath=".providerConfigRef.name"
 // +kubebuilder:printcolumn:name="RESOURCE-KIND",type="string",JSONPath=".resourceRef.kind"
 // +kubebuilder:printcolumn:name="RESOURCE-NAME",type="string",JSONPath=".resourceRef.name"
-// +kubebuilder:resource:scope=Namespaced,categories={crossplane,provider,template}
+// +kubebuilder:resource:scope=Namespaced,categories={crossplane,provider,dex}
 // A ProviderConfigUsage indicates that a resource is using a ProviderConfig.
 type ProviderConfigUsage struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -79,9 +99,9 @@ type ProviderConfigUsageList struct {
 
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:printcolumn:name="SECRET-NAME",type="string",JSONPath=".spec.credentials.secretRef.name",priority=1
-// +kubebuilder:resource:scope=Cluster,categories={crossplane,provider,template}
-// A ClusterProviderConfig configures a Template provider.
+// +kubebuilder:printcolumn:name="ENDPOINT",type="string",JSONPath=".spec.endpoint"
+// +kubebuilder:resource:scope=Cluster,categories={crossplane,provider,dex}
+// A ClusterProviderConfig configures a cluster-scoped Dex provider connection.
 type ClusterProviderConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -106,7 +126,7 @@ type ClusterProviderConfigList struct {
 // +kubebuilder:printcolumn:name="CONFIG-NAME",type="string",JSONPath=".providerConfigRef.name"
 // +kubebuilder:printcolumn:name="RESOURCE-KIND",type="string",JSONPath=".resourceRef.kind"
 // +kubebuilder:printcolumn:name="RESOURCE-NAME",type="string",JSONPath=".resourceRef.name"
-// +kubebuilder:resource:scope=Cluster,categories={crossplane,provider,template}
+// +kubebuilder:resource:scope=Cluster,categories={crossplane,provider,dex}
 // A ClusterProviderConfigUsage indicates that a resource is using a ClusterProviderConfig.
 type ClusterProviderConfigUsage struct {
 	metav1.TypeMeta   `json:",inline"`

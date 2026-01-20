@@ -4,18 +4,18 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
-  name: mytypes.sample.template.crossplane.io
+  name: clients.oauth.dex.crossplane.io
 spec:
-  group: sample.template.crossplane.io
+  group: oauth.dex.crossplane.io
   names:
     categories:
     - crossplane
     - managed
-    - template
-    kind: MyType
-    listKind: MyTypeList
-    plural: mytypes
-    singular: mytype
+    - dex
+    kind: Client
+    listKind: ClientList
+    plural: clients
+    singular: client
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -25,8 +25,8 @@ spec:
     - jsonPath: .status.conditions[?(@.type=='Synced')].status
       name: SYNCED
       type: string
-    - jsonPath: .metadata.annotations.crossplane\.io/external-name
-      name: EXTERNAL-NAME
+    - jsonPath: .status.atProvider.id
+      name: CLIENT-ID
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: AGE
@@ -34,7 +34,7 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: A MyType is an example API type.
+        description: A Client is a Dex OAuth2 client managed resource.
         properties:
           apiVersion:
             description: |-
@@ -54,15 +54,68 @@ spec:
           metadata:
             type: object
           spec:
-            description: A MyTypeSpec defines the desired state of a MyType.
+            description: A ClientSpec defines the desired state of a Client.
             properties:
               forProvider:
-                description: MyTypeParameters are the configurable fields of a MyType.
+                description: ClientParameters are the configurable fields of a Dex
+                  OAuth2 Client.
                 properties:
-                  configurableField:
+                  id:
+                    description: ID is the OAuth2 client ID. If not specified, the
+                      metadata.name will be used.
                     type: string
+                  logoURL:
+                    description: LogoURL is the URL to the client's logo.
+                    type: string
+                  name:
+                    description: Name is a human-readable name for the client.
+                    type: string
+                  public:
+                    description: |-
+                      Public indicates whether this is a public client (e.g., a native app or SPA).
+                      Public clients do not have a secret.
+                    type: boolean
+                  redirectURIs:
+                    description: RedirectURIs is a list of allowed redirect URIs for
+                      the client.
+                    items:
+                      type: string
+                    minItems: 1
+                    type: array
+                  secret:
+                    description: |-
+                      Secret is the OAuth2 client secret. If not specified, one will be generated.
+                      For public clients, this should be left empty.
+                    type: string
+                  secretRef:
+                    description: |-
+                      SecretRef is a reference to a secret containing the client secret.
+                      Takes precedence over Secret if both are specified.
+                    properties:
+                      key:
+                        description: The key to select.
+                        type: string
+                      name:
+                        description: Name of the secret.
+                        type: string
+                      namespace:
+                        description: Namespace of the secret.
+                        type: string
+                    required:
+                    - key
+                    - name
+                    - namespace
+                    type: object
+                  trustedPeers:
+                    description: |-
+                      TrustedPeers is a list of client IDs that are allowed to exchange tokens
+                      on behalf of this client.
+                    items:
+                      type: string
+                    type: array
                 required:
-                - configurableField
+                - name
+                - redirectURIs
                 type: object
               managementPolicies:
                 default:
@@ -123,17 +176,27 @@ spec:
             - forProvider
             type: object
           status:
-            description: A MyTypeStatus represents the observed state of a MyType.
+            description: A ClientStatus represents the observed state of a Client.
             properties:
               atProvider:
-                description: MyTypeObservation are the observable fields of a MyType.
+                description: ClientObservation are the observable fields of a Dex
+                  OAuth2 Client.
                 properties:
-                  configurableField:
+                  id:
+                    description: ID is the actual client ID in Dex.
                     type: string
-                  observableField:
+                  name:
+                    description: Name is the client name.
                     type: string
-                required:
-                - configurableField
+                  public:
+                    description: Public indicates whether this is a public client.
+                    type: boolean
+                  redirectURIs:
+                    description: RedirectURIs is the list of redirect URIs configured
+                      for this client.
+                    items:
+                      type: string
+                    type: array
                 type: object
               conditions:
                 description: Conditions of the resource.
