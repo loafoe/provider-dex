@@ -258,21 +258,21 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	// Update status with observed values
 	cr.Status.AtProvider = v1.DiscoveryObservation{
-		Issuer:                            discovery.Issuer,
-		AuthorizationEndpoint:             discovery.AuthorizationEndpoint,
-		TokenEndpoint:                     discovery.TokenEndpoint,
-		JWKSURI:                           discovery.JwksUri,
-		UserinfoEndpoint:                  discovery.UserinfoEndpoint,
-		DeviceAuthorizationEndpoint:       discovery.DeviceAuthorizationEndpoint,
-		IntrospectionEndpoint:             discovery.IntrospectionEndpoint,
-		GrantTypesSupported:               discovery.GrantTypesSupported,
-		ResponseTypesSupported:            discovery.ResponseTypesSupported,
-		SubjectTypesSupported:             discovery.SubjectTypesSupported,
-		IDTokenSigningAlgValuesSupported:  discovery.IdTokenSigningAlgValuesSupported,
-		CodeChallengeMethodsSupported:     discovery.CodeChallengeMethodsSupported,
-		ScopesSupported:                   discovery.ScopesSupported,
-		TokenEndpointAuthMethodsSupported: discovery.TokenEndpointAuthMethodsSupported,
-		ClaimsSupported:                   discovery.ClaimsSupported,
+		Issuer:                            discovery.GetIssuer(),
+		AuthorizationEndpoint:             discovery.GetAuthorizationEndpoint(),
+		TokenEndpoint:                     discovery.GetTokenEndpoint(),
+		JWKSURI:                           discovery.GetJwksUri(),
+		UserinfoEndpoint:                  discovery.GetUserinfoEndpoint(),
+		DeviceAuthorizationEndpoint:       discovery.GetDeviceAuthorizationEndpoint(),
+		IntrospectionEndpoint:             discovery.GetIntrospectionEndpoint(),
+		GrantTypesSupported:               discovery.GetGrantTypesSupported(),
+		ResponseTypesSupported:            discovery.GetResponseTypesSupported(),
+		SubjectTypesSupported:             discovery.GetSubjectTypesSupported(),
+		IDTokenSigningAlgValuesSupported:  discovery.GetIdTokenSigningAlgValuesSupported(),
+		CodeChallengeMethodsSupported:     discovery.GetCodeChallengeMethodsSupported(),
+		ScopesSupported:                   discovery.GetScopesSupported(),
+		TokenEndpointAuthMethodsSupported: discovery.GetTokenEndpointAuthMethodsSupported(),
+		ClaimsSupported:                   discovery.GetClaimsSupported(),
 	}
 
 	cr.Status.SetConditions(xpv1.Available())
