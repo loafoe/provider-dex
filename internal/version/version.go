@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Crossplane Authors.
+Copyright 2026 Andy Lo-A-Foe.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -15,4 +15,4 @@ limitations under the License.
 package version
 
 // Version will be overridden with the current version at build time using the -X linker flag
-var Version = "0.0.0"
+var Version = "1.0.0"

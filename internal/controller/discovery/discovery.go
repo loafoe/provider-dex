@@ -1,5 +1,5 @@
 /*
-Copyright 2025 The Crossplane Authors.
+Copyright 2026 Andy Lo-A-Foe.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -34,8 +34,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/statemetrics"
 
-	v1alpha1 "github.com/crossplane/provider-dex/apis/oauth/v1alpha1"
-	apisv1alpha1 "github.com/crossplane/provider-dex/apis/v1alpha1"
+	v1 "github.com/crossplane/provider-dex/apis/oauth/v1"
+	apisv1 "github.com/crossplane/provider-dex/apis/v1alpha1"
 	dexclient "github.com/crossplane/provider-dex/internal/clients/dex"
 )
 
@@ -56,17 +56,17 @@ func SetupGated(mgr ctrl.Manager, o controller.Options) error {
 		if err := Setup(mgr, o); err != nil {
 			panic(errors.Wrap(err, "cannot setup Discovery controller"))
 		}
-	}, v1alpha1.DiscoveryGroupVersionKind)
+	}, v1.DiscoveryGroupVersionKind)
 	return nil
 }
 
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(v1alpha1.DiscoveryGroupKind)
+	name := managed.ControllerName(v1.DiscoveryGroupKind)
 
 	opts := []managed.ReconcilerOption{
 		managed.WithExternalConnector(&connector{
 			kube:  mgr.GetClient(),
-			usage: resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
+			usage: resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1.ProviderConfigUsage{}),
 		}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithPollInterval(o.PollInterval),
@@ -87,20 +87,20 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	if o.MetricOptions != nil && o.MetricOptions.MRStateMetrics != nil {
 		stateMetricsRecorder := statemetrics.NewMRStateRecorder(
-			mgr.GetClient(), o.Logger, o.MetricOptions.MRStateMetrics, &v1alpha1.DiscoveryList{}, o.MetricOptions.PollStateMetricInterval,
+			mgr.GetClient(), o.Logger, o.MetricOptions.MRStateMetrics, &v1.DiscoveryList{}, o.MetricOptions.PollStateMetricInterval,
 		)
 		if err := mgr.Add(stateMetricsRecorder); err != nil {
-			return errors.Wrap(err, "cannot register MR state metrics recorder for kind v1alpha1.DiscoveryList")
+			return errors.Wrap(err, "cannot register MR state metrics recorder for kind v1.DiscoveryList")
 		}
 	}
 
-	r := managed.NewReconciler(mgr, resource.ManagedKind(v1alpha1.DiscoveryGroupVersionKind), opts...)
+	r := managed.NewReconciler(mgr, resource.ManagedKind(v1.DiscoveryGroupVersionKind), opts...)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
-		For(&v1alpha1.Discovery{}).
+		For(&v1.Discovery{}).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
@@ -117,7 +117,7 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*v1alpha1.Discovery)
+	cr, ok := mg.(*v1.Discovery)
 	if !ok {
 		return nil, errors.New(errNotDiscovery)
 	}
@@ -130,11 +130,11 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	m := mg.(resource.ModernManaged)
 	ref := m.GetProviderConfigReference()
 
-	var spec apisv1alpha1.ProviderConfigSpec
+	var spec apisv1.ProviderConfigSpec
 
 	switch ref.Kind {
 	case "ProviderConfig":
-		pc := &apisv1alpha1.ProviderConfig{}
+		pc := &apisv1.ProviderConfig{}
 		if err := c.kube.Get(ctx, types.NamespacedName{Name: ref.Name, Namespace: m.GetNamespace()}, pc); err != nil {
 			return nil, errors.Wrap(err, errGetPC)
 		}
@@ -142,7 +142,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	case "ClusterProviderConfig":
 		fallthrough
 	default:
-		cpc := &apisv1alpha1.ClusterProviderConfig{}
+		cpc := &apisv1.ClusterProviderConfig{}
 		if err := c.kube.Get(ctx, types.NamespacedName{Name: ref.Name}, cpc); err != nil {
 			return nil, errors.Wrap(err, errGetCPC)
 		}
@@ -183,7 +183,7 @@ type tlsCredentials struct {
 	clientKey  []byte
 }
 
-func (c *connector) getTLSCredentials(ctx context.Context, tls *apisv1alpha1.TLSConfig) (*tlsCredentials, error) {
+func (c *connector) getTLSCredentials(ctx context.Context, tls *apisv1.TLSConfig) (*tlsCredentials, error) {
 	creds := &tlsCredentials{}
 
 	// Get CA certificate
@@ -245,7 +245,7 @@ func (c *external) Disconnect(ctx context.Context) error {
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*v1alpha1.Discovery)
+	cr, ok := mg.(*v1.Discovery)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotDiscovery)
 	}
@@ -257,22 +257,22 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 
 	// Update status with observed values
-	cr.Status.AtProvider = v1alpha1.DiscoveryObservation{
-		Issuer:                            discovery.Issuer,
-		AuthorizationEndpoint:             discovery.AuthorizationEndpoint,
-		TokenEndpoint:                     discovery.TokenEndpoint,
-		JWKSURI:                           discovery.JwksUri,
-		UserinfoEndpoint:                  discovery.UserinfoEndpoint,
-		DeviceAuthorizationEndpoint:       discovery.DeviceAuthorizationEndpoint,
-		IntrospectionEndpoint:             discovery.IntrospectionEndpoint,
-		GrantTypesSupported:               discovery.GrantTypesSupported,
-		ResponseTypesSupported:            discovery.ResponseTypesSupported,
-		SubjectTypesSupported:             discovery.SubjectTypesSupported,
-		IDTokenSigningAlgValuesSupported:  discovery.IdTokenSigningAlgValuesSupported,
-		CodeChallengeMethodsSupported:     discovery.CodeChallengeMethodsSupported,
-		ScopesSupported:                   discovery.ScopesSupported,
-		TokenEndpointAuthMethodsSupported: discovery.TokenEndpointAuthMethodsSupported,
-		ClaimsSupported:                   discovery.ClaimsSupported,
+	cr.Status.AtProvider = v1.DiscoveryObservation{
+		Issuer:                            discovery.GetIssuer(),
+		AuthorizationEndpoint:             discovery.GetAuthorizationEndpoint(),
+		TokenEndpoint:                     discovery.GetTokenEndpoint(),
+		JWKSURI:                           discovery.GetJwksUri(),
+		UserinfoEndpoint:                  discovery.GetUserinfoEndpoint(),
+		DeviceAuthorizationEndpoint:       discovery.GetDeviceAuthorizationEndpoint(),
+		IntrospectionEndpoint:             discovery.GetIntrospectionEndpoint(),
+		GrantTypesSupported:               discovery.GetGrantTypesSupported(),
+		ResponseTypesSupported:            discovery.GetResponseTypesSupported(),
+		SubjectTypesSupported:             discovery.GetSubjectTypesSupported(),
+		IDTokenSigningAlgValuesSupported:  discovery.GetIdTokenSigningAlgValuesSupported(),
+		CodeChallengeMethodsSupported:     discovery.GetCodeChallengeMethodsSupported(),
+		ScopesSupported:                   discovery.GetScopesSupported(),
+		TokenEndpointAuthMethodsSupported: discovery.GetTokenEndpointAuthMethodsSupported(),
+		ClaimsSupported:                   discovery.GetClaimsSupported(),
 	}
 
 	cr.Status.SetConditions(xpv1.Available())

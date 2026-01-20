@@ -1,5 +1,5 @@
 /*
-Copyright 2025 The Crossplane Authors.
+Copyright 2026 Andy Lo-A-Foe.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,15 +20,15 @@ package apis
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
+	oauthv1 "github.com/crossplane/provider-dex/apis/oauth/v1"
 	dexv1alpha1 "github.com/crossplane/provider-dex/apis/v1alpha1"
-	oauthv1alpha1 "github.com/crossplane/provider-dex/apis/oauth/v1alpha1"
 )
 
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
 	AddToSchemes = append(AddToSchemes,
 		dexv1alpha1.SchemeBuilder.AddToScheme,
-		oauthv1alpha1.SchemeBuilder.AddToScheme,
+		oauthv1.SchemeBuilder.AddToScheme,
 	)
 }
 

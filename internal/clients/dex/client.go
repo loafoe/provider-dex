@@ -1,5 +1,5 @@
 /*
-Copyright 2025 The Crossplane Authors.
+Copyright 2026 Andy Lo-A-Foe.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -81,7 +81,7 @@ func NewClient(cfg Config) (*Client, error) {
 
 func buildTLSConfig(cfg Config) (*tls.Config, error) {
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: cfg.InsecureSkipVerify,
+		InsecureSkipVerify: cfg.InsecureSkipVerify, //nolint:gosec // User-controlled option for dev/test environments with self-signed certs
 	}
 
 	// Add CA certificate if provided
@@ -124,11 +124,11 @@ func (c *Client) CreateClient(ctx context.Context, client *api.Client) (*api.Cli
 		return nil, errors.Wrap(err, "failed to create client")
 	}
 
-	if resp.AlreadyExists {
-		return nil, fmt.Errorf("client with ID %q already exists", client.Id)
+	if resp.GetAlreadyExists() {
+		return nil, fmt.Errorf("client with ID %q already exists", client.GetId())
 	}
 
-	return resp.Client, nil
+	return resp.GetClient(), nil
 }
 
 // GetClient retrieves an OAuth2 client from Dex by ID.
@@ -140,8 +140,8 @@ func (c *Client) GetClient(ctx context.Context, id string) (*api.ClientInfo, err
 		return nil, errors.Wrap(err, "failed to list clients")
 	}
 
-	for _, client := range resp.Clients {
-		if client.Id == id {
+	for _, client := range resp.GetClients() {
+		if client.GetId() == id {
 			return client, nil
 		}
 	}
@@ -164,7 +164,7 @@ func (c *Client) UpdateClient(ctx context.Context, id string, redirectURIs, trus
 		return errors.Wrap(err, "failed to update client")
 	}
 
-	if resp.NotFound {
+	if resp.GetNotFound() {
 		return fmt.Errorf("client with ID %q not found", id)
 	}
 
@@ -182,7 +182,7 @@ func (c *Client) DeleteClient(ctx context.Context, id string) error {
 		return errors.Wrap(err, "failed to delete client")
 	}
 
-	if resp.NotFound {
+	if resp.GetNotFound() {
 		return fmt.Errorf("client with ID %q not found", id)
 	}
 
@@ -197,7 +197,7 @@ func (c *Client) ListClients(ctx context.Context) ([]*api.ClientInfo, error) {
 		return nil, errors.Wrap(err, "failed to list clients")
 	}
 
-	return resp.Clients, nil
+	return resp.GetClients(), nil
 }
 
 // GetDiscovery retrieves OIDC discovery information from Dex.

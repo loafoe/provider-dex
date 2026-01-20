@@ -1,5 +1,5 @@
 /*
-Copyright 2025 The Crossplane Authors.
+Copyright 2026 Andy Lo-A-Foe.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/statemetrics"
 
-	v1alpha1 "github.com/crossplane/provider-dex/apis/oauth/v1alpha1"
+	v1 "github.com/crossplane/provider-dex/apis/oauth/v1"
 	apisv1alpha1 "github.com/crossplane/provider-dex/apis/v1alpha1"
 	dexclient "github.com/crossplane/provider-dex/internal/clients/dex"
 )
@@ -67,12 +67,12 @@ func SetupGated(mgr ctrl.Manager, o controller.Options) error {
 		if err := Setup(mgr, o); err != nil {
 			panic(errors.Wrap(err, "cannot setup Client controller"))
 		}
-	}, v1alpha1.ClientGroupVersionKind)
+	}, v1.ClientGroupVersionKind)
 	return nil
 }
 
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(v1alpha1.ClientGroupKind)
+	name := managed.ControllerName(v1.ClientGroupKind)
 
 	opts := []managed.ReconcilerOption{
 		managed.WithExternalConnector(&connector{
@@ -98,20 +98,20 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	if o.MetricOptions != nil && o.MetricOptions.MRStateMetrics != nil {
 		stateMetricsRecorder := statemetrics.NewMRStateRecorder(
-			mgr.GetClient(), o.Logger, o.MetricOptions.MRStateMetrics, &v1alpha1.ClientList{}, o.MetricOptions.PollStateMetricInterval,
+			mgr.GetClient(), o.Logger, o.MetricOptions.MRStateMetrics, &v1.ClientList{}, o.MetricOptions.PollStateMetricInterval,
 		)
 		if err := mgr.Add(stateMetricsRecorder); err != nil {
 			return errors.Wrap(err, "cannot register MR state metrics recorder for kind v1alpha1.ClientList")
 		}
 	}
 
-	r := managed.NewReconciler(mgr, resource.ManagedKind(v1alpha1.ClientGroupVersionKind), opts...)
+	r := managed.NewReconciler(mgr, resource.ManagedKind(v1.ClientGroupVersionKind), opts...)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
-		For(&v1alpha1.Client{}).
+		For(&v1.Client{}).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
@@ -127,8 +127,10 @@ type connector struct {
 // 2. Getting the managed resource's ProviderConfig.
 // 3. Getting the TLS credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a Dex gRPC client.
+//
+//nolint:gocyclo // Complexity is due to handling multiple ProviderConfig types and TLS setup; logic is linear and readable
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*v1alpha1.Client)
+	cr, ok := mg.(*v1.Client)
 	if !ok {
 		return nil, errors.New(errNotClient)
 	}
@@ -228,7 +230,7 @@ type external struct {
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*v1alpha1.Client)
+	cr, ok := mg.(*v1.Client)
 	if !ok {
 		return managed.ExternalObservation{}, errors.New(errNotClient)
 	}
@@ -252,11 +254,11 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}
 
 	// Update status with observed values
-	cr.Status.AtProvider = v1alpha1.ClientObservation{
-		ID:           existing.Id,
-		Name:         existing.Name,
-		Public:       existing.Public,
-		RedirectURIs: existing.RedirectUris,
+	cr.Status.AtProvider = v1.ClientObservation{
+		ID:           existing.GetId(),
+		Name:         existing.GetName(),
+		Public:       existing.GetPublic(),
+		RedirectURIs: existing.GetRedirectUris(),
 	}
 
 	// Check if the resource is up to date
@@ -273,8 +275,9 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 	}, nil
 }
 
+//nolint:gocyclo // Complexity is due to handling secret retrieval, generation, and connection details; logic is straightforward
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	cr, ok := mg.(*v1alpha1.Client)
+	cr, ok := mg.(*v1.Client)
 	if !ok {
 		return managed.ExternalCreation{}, errors.New(errNotClient)
 	}
@@ -321,14 +324,14 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	}
 
 	// Set external name to the client ID
-	meta.SetExternalName(cr, created.Id)
+	meta.SetExternalName(cr, created.GetId())
 
 	// Return connection details including the secret from Dex response
 	connDetails := managed.ConnectionDetails{
-		"clientId": []byte(created.Id),
+		"clientId": []byte(created.GetId()),
 	}
-	if created.Secret != "" {
-		connDetails["clientSecret"] = []byte(created.Secret)
+	if created.GetSecret() != "" {
+		connDetails["clientSecret"] = []byte(created.GetSecret())
 	}
 
 	return managed.ExternalCreation{
@@ -337,7 +340,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
-	cr, ok := mg.(*v1alpha1.Client)
+	cr, ok := mg.(*v1.Client)
 	if !ok {
 		return managed.ExternalUpdate{}, errors.New(errNotClient)
 	}
@@ -366,7 +369,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) (managed.ExternalDelete, error) {
-	cr, ok := mg.(*v1alpha1.Client)
+	cr, ok := mg.(*v1.Client)
 	if !ok {
 		return managed.ExternalDelete{}, errors.New(errNotClient)
 	}
@@ -427,20 +430,20 @@ func generateSecret(length int) (string, error) {
 
 // isClientUpToDate checks if the Dex client matches the desired spec.
 // Note: Uses ClientInfo since ListClients returns ClientInfo (without secret).
-func isClientUpToDate(spec v1alpha1.ClientParameters, existing *api.ClientInfo) bool {
-	if spec.Name != existing.Name {
+func isClientUpToDate(spec v1.ClientParameters, existing *api.ClientInfo) bool {
+	if spec.Name != existing.GetName() {
 		return false
 	}
-	if spec.LogoURL != existing.LogoUrl {
+	if spec.LogoURL != existing.GetLogoUrl() {
 		return false
 	}
-	if spec.Public != existing.Public {
+	if spec.Public != existing.GetPublic() {
 		return false
 	}
-	if !reflect.DeepEqual(spec.RedirectURIs, existing.RedirectUris) {
+	if !reflect.DeepEqual(spec.RedirectURIs, existing.GetRedirectUris()) {
 		return false
 	}
-	if !reflect.DeepEqual(spec.TrustedPeers, existing.TrustedPeers) {
+	if !reflect.DeepEqual(spec.TrustedPeers, existing.GetTrustedPeers()) {
 		return false
 	}
 	return true

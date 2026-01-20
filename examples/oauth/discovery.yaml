@@ -1,5 +1,5 @@
 # Discovery resource - observe-only resource to fetch OIDC discovery information from Dex
-apiVersion: oauth.dex.crossplane.io/v1alpha1
+apiVersion: oauth.dex.crossplane.io/v1
 kind: Discovery
 metadata:
   name: dex-discovery
