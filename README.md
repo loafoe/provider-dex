@@ -1,35 +1,97 @@
 # provider-dex
 
-`provider-dex` is a minimal [Crossplane](https://crossplane.io/) Provider
-that is meant to be used as a dex for implementing new Providers. It comes
-with the following features that are meant to be refactored:
+`provider-dex` is a [Crossplane](https://crossplane.io/) Provider for managing
+[Dex](https://dexidp.io/) OAuth2/OIDC resources via the Dex gRPC API.
 
-- A `ProviderConfig` type that only points to a credentials `Secret`.
-- A `MyType` resource type that serves as an example managed resource.
-- A managed resource controller that reconciles `MyType` objects and simply
-  prints their configuration in its `Observe` method.
+## Features
+
+- Manage Dex OAuth2 clients as Kubernetes resources
+- Support for both namespace-scoped `ProviderConfig` and cluster-scoped `ClusterProviderConfig`
+- TLS/mTLS authentication support for secure gRPC connections
+- Automatic client secret generation with connection secret support
+
+## Requirements
+
+- Dex must be configured with gRPC API enabled
+- Dex must use a storage backend that supports `ListClients` (sqlite, postgres, mysql)
+  - The Kubernetes storage backend does **not** support the gRPC API for client management
+
+## Resources
+
+### Client
+
+The `Client` resource manages OAuth2 clients in Dex.
+
+```yaml
+apiVersion: oauth.dex.crossplane.io/v1alpha1
+kind: Client
+metadata:
+  name: my-app
+  namespace: default
+spec:
+  forProvider:
+    id: my-app
+    name: "My Application"
+    redirectURIs:
+      - "https://my-app.example.com/callback"
+    public: false
+  providerConfigRef:
+    name: dex-config
+    kind: ClusterProviderConfig
+  writeConnectionSecretToRef:
+    name: my-app-credentials
+```
+
+#### Spec Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `forProvider.id` | string | OAuth2 client ID (defaults to resource name) |
+| `forProvider.name` | string | Human-readable client name |
+| `forProvider.redirectURIs` | []string | Allowed redirect URIs |
+| `forProvider.trustedPeers` | []string | Client IDs that can exchange tokens |
+| `forProvider.public` | bool | Public client (no secret required) |
+| `forProvider.logoURL` | string | URL to client logo |
+| `forProvider.secret` | string | Client secret (auto-generated if not set) |
+| `forProvider.secretRef` | SecretKeySelector | Reference to existing secret |
+
+#### Connection Secret
+
+When `writeConnectionSecretToRef` is specified, the provider writes:
+- `clientId` - The OAuth2 client ID
+- `clientSecret` - The generated or provided client secret
+
+### ProviderConfig / ClusterProviderConfig
+
+Configure the connection to Dex gRPC API:
+
+```yaml
+apiVersion: dex.crossplane.io/v1alpha1
+kind: ClusterProviderConfig
+metadata:
+  name: dex-config
+spec:
+  endpoint: "dex.iam-dex.svc.cluster.local:5557"
+  # Optional TLS configuration
+  tls:
+    caSecretRef:
+      name: dex-ca
+      namespace: iam-dex
+      key: ca.crt
+    clientCertSecretRef:
+      name: dex-client-cert
+      namespace: iam-dex
+      key: tls.crt
+    clientKeySecretRef:
+      name: dex-client-cert
+      namespace: iam-dex
+      key: tls.key
+```
 
 ## Developing
 
-1. Use this repository as a dex to create a new one.
-1. Run `make submodules` to initialize the "build" Make submodule we use for CI/CD.
-1. Rename the provider by running the following command:
-```shell
-  export provider_name=MyProvider # Camel case, e.g. GitHub
-  make provider.prepare provider=${provider_name}
-```
-4. Add your new type by running the following command:
-```shell
-  export group=sample # lower case e.g. core, cache, database, storage, etc.
-  export type=MyType # Camel casee.g. Bucket, Database, CacheCluster, etc.
-  make provider.addtype provider=${provider_name} group=${group} kind=${type}
-```
-5. Replace the *sample* group with your new group in apis/{provider}.go
-5. Replace the *mytype* type with your new type in internal/controller/{provider}.go
-5. Replace the default controller and ProviderConfig implementations with your own
-5. Register your new type into `SetupGated` function in `internal/controller/register.go`
-5. Run `make reviewable` to run code generation, linters, and tests.
-5. Run `make build` to build the provider.
+1. Run `make reviewable` to run code generation, linters, and tests.
+2. Run `make build` to build the provider.
 
 Refer to Crossplane's [CONTRIBUTING.md] file for more information on how the
 Crossplane community prefers to work. The [Provider Development][provider-dev]
