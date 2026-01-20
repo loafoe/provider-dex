@@ -1,7 +1,7 @@
 # Example Dex OAuth2 Client resources
 
 # Basic client with namespace-scoped ProviderConfig
-apiVersion: oauth.dex.crossplane.io/v1alpha1
+apiVersion: oauth.dex.crossplane.io/v1
 kind: Client
 metadata:
   name: my-web-app
@@ -23,7 +23,7 @@ spec:
     kind: ProviderConfig
 ---
 # Public client (e.g., for SPA or mobile app) with ClusterProviderConfig
-apiVersion: oauth.dex.crossplane.io/v1alpha1
+apiVersion: oauth.dex.crossplane.io/v1
 kind: Client
 metadata:
   name: my-spa
@@ -42,7 +42,7 @@ spec:
     kind: ClusterProviderConfig
 ---
 # Client with trusted peers (for token exchange)
-apiVersion: oauth.dex.crossplane.io/v1alpha1
+apiVersion: oauth.dex.crossplane.io/v1
 kind: Client
 metadata:
   name: backend-service
@@ -63,7 +63,7 @@ spec:
     kind: ClusterProviderConfig
 ---
 # Client with secret from existing Kubernetes secret
-apiVersion: oauth.dex.crossplane.io/v1alpha1
+apiVersion: oauth.dex.crossplane.io/v1
 kind: Client
 metadata:
   name: external-app

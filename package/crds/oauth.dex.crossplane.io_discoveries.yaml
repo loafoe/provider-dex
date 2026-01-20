@@ -31,7 +31,7 @@ spec:
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
-    name: v1alpha1
+    name: v1
     schema:
       openAPIV3Schema:
         description: A Discovery is an observe-only resource that fetches OIDC discovery

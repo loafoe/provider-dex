@@ -24,7 +24,7 @@
 The `Client` resource manages OAuth2 clients in Dex.
 
 ```yaml
-apiVersion: oauth.dex.crossplane.io/v1alpha1
+apiVersion: oauth.dex.crossplane.io/v1
 kind: Client
 metadata:
   name: my-app
@@ -67,7 +67,7 @@ When `writeConnectionSecretToRef` is specified, the provider writes:
 The `Discovery` resource is an **observe-only** resource that fetches OIDC discovery information from Dex.
 
 ```yaml
-apiVersion: oauth.dex.crossplane.io/v1alpha1
+apiVersion: oauth.dex.crossplane.io/v1
 kind: Discovery
 metadata:
   name: dex-discovery

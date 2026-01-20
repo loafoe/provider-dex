@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha1 contains the v1alpha1 group Sample resources of the Dex provider.
+// Package v1 contains the v1 group OAuth resources of the Dex provider.
 // +kubebuilder:object:generate=true
 // +groupName=oauth.dex.crossplane.io
-// +versionName=v1alpha1
-package v1alpha1
+// +versionName=v1
+package v1
 
 import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -28,7 +28,7 @@ import (
 // Package type metadata.
 const (
 	Group   = "oauth.dex.crossplane.io"
-	Version = "v1alpha1"
+	Version = "v1"
 )
 
 var (

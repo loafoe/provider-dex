@@ -1,5 +1,5 @@
 # Test Client resource
-apiVersion: oauth.dex.crossplane.io/v1alpha1
+apiVersion: oauth.dex.crossplane.io/v1
 kind: Client
 metadata:
   name: test-client
