@@ -326,9 +326,16 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 	// Set external name to the client ID
 	meta.SetExternalName(cr, created.GetId())
 
+	// Get issuer URL from discovery endpoint
+	discovery, err := c.dex.GetDiscovery(ctx)
+	if err != nil {
+		return managed.ExternalCreation{}, errors.Wrap(err, "cannot get discovery for issuer URL")
+	}
+
 	// Return connection details including the secret from Dex response
 	connDetails := managed.ConnectionDetails{
-		"clientId": []byte(created.GetId()),
+		"clientId":  []byte(created.GetId()),
+		"issuerUrl": []byte(discovery.GetIssuer()),
 	}
 	if created.GetSecret() != "" {
 		connDetails["clientSecret"] = []byte(created.GetSecret())
