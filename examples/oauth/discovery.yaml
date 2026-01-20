@@ -1,0 +1,15 @@
+# Discovery resource - observe-only resource to fetch OIDC discovery information from Dex
+apiVersion: oauth.dex.crossplane.io/v1alpha1
+kind: Discovery
+metadata:
+  name: dex-discovery
+  namespace: default
+spec:
+  # Discovery is observe-only, so forProvider is empty
+  forProvider: {}
+  providerConfigRef:
+    name: dex-config
+    kind: ClusterProviderConfig
+  # Use Observe management policy since this is a read-only resource
+  managementPolicies:
+    - Observe
