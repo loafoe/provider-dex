@@ -17,6 +17,15 @@ func (l *ClientList) GetItems() []resource.Managed {
 	return items
 }
 
+// GetItems of this ConnectorList.
+func (l *ConnectorList) GetItems() []resource.Managed {
+	items := make([]resource.Managed, len(l.Items))
+	for i := range l.Items {
+		items[i] = &l.Items[i]
+	}
+	return items
+}
+
 // GetItems of this DiscoveryList.
 func (l *DiscoveryList) GetItems() []resource.Managed {
 	items := make([]resource.Managed, len(l.Items))

@@ -22,6 +22,7 @@ import (
 
 	"github.com/crossplane/provider-dex/internal/controller/client"
 	"github.com/crossplane/provider-dex/internal/controller/config"
+	"github.com/crossplane/provider-dex/internal/controller/connector"
 	"github.com/crossplane/provider-dex/internal/controller/discovery"
 )
 
@@ -32,6 +33,7 @@ func SetupGated(mgr ctrl.Manager, o controller.Options) error {
 		config.Setup,
 		client.SetupGated,
 		discovery.SetupGated,
+		connector.SetupGated,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err

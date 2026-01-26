@@ -209,3 +209,77 @@ func (c *Client) GetDiscovery(ctx context.Context) (*api.DiscoveryResp, error) {
 
 	return resp, nil
 }
+
+// CreateConnector creates a new connector in Dex.
+func (c *Client) CreateConnector(ctx context.Context, connector *api.Connector) (*api.Connector, error) {
+	req := &api.CreateConnectorReq{
+		Connector: connector,
+	}
+
+	resp, err := c.dex.CreateConnector(ctx, req)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create connector")
+	}
+
+	if resp.GetAlreadyExists() {
+		return nil, fmt.Errorf("connector with ID %q already exists", connector.GetId())
+	}
+
+	return connector, nil
+}
+
+// GetConnector retrieves a connector from Dex by ID.
+// Returns an error if ListConnectors is not implemented by the storage backend.
+func (c *Client) GetConnector(ctx context.Context, id string) (*api.Connector, error) {
+	resp, err := c.dex.ListConnectors(ctx, &api.ListConnectorReq{})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list connectors")
+	}
+
+	for _, connector := range resp.GetConnectors() {
+		if connector.GetId() == id {
+			return connector, nil
+		}
+	}
+
+	return nil, nil // Connector not found
+}
+
+// UpdateConnector updates an existing connector in Dex.
+func (c *Client) UpdateConnector(ctx context.Context, id, newType, newName string, newConfig []byte) error {
+	req := &api.UpdateConnectorReq{
+		Id:        id,
+		NewType:   newType,
+		NewName:   newName,
+		NewConfig: newConfig,
+	}
+
+	resp, err := c.dex.UpdateConnector(ctx, req)
+	if err != nil {
+		return errors.Wrap(err, "failed to update connector")
+	}
+
+	if resp.GetNotFound() {
+		return fmt.Errorf("connector with ID %q not found", id)
+	}
+
+	return nil
+}
+
+// DeleteConnector deletes a connector from Dex.
+func (c *Client) DeleteConnector(ctx context.Context, id string) error {
+	req := &api.DeleteConnectorReq{
+		Id: id,
+	}
+
+	resp, err := c.dex.DeleteConnector(ctx, req)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete connector")
+	}
+
+	if resp.GetNotFound() {
+		return fmt.Errorf("connector with ID %q not found", id)
+	}
+
+	return nil
+}
