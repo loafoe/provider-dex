@@ -1,11 +1,11 @@
 # provider-dex
 
 `provider-dex` is a [Crossplane](https://crossplane.io/) Provider for managing
-[Dex](https://dexidp.io/) OAuth2/OIDC resources via the Dex gRPC API.
+[Dex](https://dexidp.io/) Identity Provider resources via the Dex gRPC API.
 
 ## Features
 
-- Manage Dex OAuth2 clients as Kubernetes resources
+- Manage Dex **Connectors** and **Clients** as Kubernetes resources
 - Observe OIDC discovery information from Dex
 - Support for both namespace-scoped `ProviderConfig` and cluster-scoped `ClusterProviderConfig`
 - TLS/mTLS authentication support for secure gRPC connections
@@ -14,10 +14,57 @@
 ## Requirements
 
 - Dex must be configured with gRPC API enabled
-- Dex must use a storage backend that supports `ListClients` (sqlite, postgres, mysql)
-  - The Kubernetes storage backend does **not** support the gRPC API for client management
+- Dex must use a storage backend that supports the gRPC API (e.g. `sqlite`, `postgres`, `mysql`)
+  - The Kubernetes storage backend does **not** support the gRPC API for client/connector management
 
 ## Resources
+
+### Connector
+
+The `Connector` resource manages Identity Provider connectors in Dex.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: github-connector-config
+  namespace: crossplane-system
+stringData:
+  config.json: |
+    {
+      "clientID": "xxxxx",
+      "clientSecret": "yyyyy",
+      "redirectURI": "https://dex.example.com/callback",
+      "teamNameField": "slug",
+      "useLoginAsID": true
+    }
+---
+apiVersion: oauth.dex.crossplane.io/v1
+kind: Connector
+metadata:
+  name: github
+  namespace: crossplane-system
+spec:
+  forProvider:
+    type: github
+    name: GitHub
+    id: github 
+    configSecretRef:
+      name: github-connector-config
+      namespace: crossplane-system
+      key: config.json
+  providerConfigRef:
+    name: dex-config
+```
+
+#### Spec Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `forProvider.id` | string | Connector ID (defaults to resource name) |
+| `forProvider.type` | string | Connector type (e.g., `oidc`, `github`, `ldap`) |
+| `forProvider.name` | string | Human-readable connector name |
+| `forProvider.configSecretRef` | SecretKeySelector | Reference to a secret containing [connector configuration JSON](https://dexidp.io/docs/connectors/) |
 
 ### Client
 
