@@ -10,13 +10,4 @@ metadata:
       A Crossplane provider to manage Dex clients.
 spec:
   capabilities:
-    - safe-start
-  permissionRequests:
-    - apiGroups:
-        - apiextensions.k8s.io
-      resources:
-        - customresourcedefinitions
-      verbs:
-        - get
-        - list
-        - watch
+    - SafeStart
