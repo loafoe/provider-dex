@@ -17,6 +17,7 @@ limitations under the License.
 package connector
 
 import (
+	"bytes"
 	"context"
 	"strings"
 
@@ -133,7 +134,25 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
 
-	// Get ProviderConfigRef
+	spec, err := c.getProviderConfigSpec(ctx, mg)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg, err := c.getDexClientConfig(ctx, spec)
+	if err != nil {
+		return nil, err
+	}
+
+	dex, err := dexclient.NewClient(cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, errNewClient)
+	}
+
+	return &external{dex: dex, kube: c.kube}, nil
+}
+
+func (c *connector) getProviderConfigSpec(ctx context.Context, mg resource.Managed) (apisv1alpha1.ProviderConfigSpec, error) {
 	m := mg.(resource.ModernManaged)
 	ref := m.GetProviderConfigReference()
 
@@ -143,20 +162,22 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 	case "ProviderConfig":
 		pc := &apisv1alpha1.ProviderConfig{}
 		if err := c.kube.Get(ctx, types.NamespacedName{Name: ref.Name, Namespace: m.GetNamespace()}, pc); err != nil {
-			return nil, errors.Wrap(err, errGetPC)
+			return spec, errors.Wrap(err, errGetPC)
 		}
 		spec = pc.Spec
 	case "ClusterProviderConfig":
 		cpc := &apisv1alpha1.ClusterProviderConfig{}
 		if err := c.kube.Get(ctx, types.NamespacedName{Name: ref.Name}, cpc); err != nil {
-			return nil, errors.Wrap(err, errGetCPC)
+			return spec, errors.Wrap(err, errGetCPC)
 		}
 		spec = cpc.Spec
 	default:
-		return nil, errors.Errorf("unsupported provider config kind: %s", ref.Kind)
+		return spec, errors.Errorf("unsupported provider config kind: %s", ref.Kind)
 	}
+	return spec, nil
+}
 
-	// Build Dex client config
+func (c *connector) getDexClientConfig(ctx context.Context, spec apisv1alpha1.ProviderConfigSpec) (dexclient.Config, error) {
 	cfg := dexclient.Config{
 		Endpoint: spec.Endpoint,
 	}
@@ -168,7 +189,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		if spec.TLS.CACert != nil {
 			caCert, err := c.extractSecretData(ctx, spec.TLS.CACert)
 			if err != nil {
-				return nil, errors.Wrap(err, errGetTLSCreds)
+				return cfg, errors.Wrap(err, errGetTLSCreds)
 			}
 			cfg.CACert = caCert
 		}
@@ -176,7 +197,7 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		if spec.TLS.ClientCert != nil {
 			clientCert, err := c.extractSecretData(ctx, spec.TLS.ClientCert)
 			if err != nil {
-				return nil, errors.Wrap(err, errGetTLSCreds)
+				return cfg, errors.Wrap(err, errGetTLSCreds)
 			}
 			cfg.ClientCert = clientCert
 		}
@@ -184,18 +205,12 @@ func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.E
 		if spec.TLS.ClientKey != nil {
 			clientKey, err := c.extractSecretData(ctx, spec.TLS.ClientKey)
 			if err != nil {
-				return nil, errors.Wrap(err, errGetTLSCreds)
+				return cfg, errors.Wrap(err, errGetTLSCreds)
 			}
 			cfg.ClientKey = clientKey
 		}
 	}
-
-	dex, err := dexclient.NewClient(cfg)
-	if err != nil {
-		return nil, errors.Wrap(err, errNewClient)
-	}
-
-	return &external{dex: dex, kube: c.kube}, nil
+	return cfg, nil
 }
 
 // extractSecretData extracts data from a secret using the given selector.
@@ -419,7 +434,7 @@ func isConnectorUpToDate(spec v1.ConnectorParameters, config []byte, existing *a
 	// Or we could JSON decode both and compare.
 	// Let's stick to byte comparison for simplicity as per common Crossplane pattern,
 	// but strictly speaking, JSON equivalence is better.
-	if string(config) != string(existing.GetConfig()) {
+	if !bytes.Equal(config, existing.GetConfig()) {
 		return false
 	}
 
