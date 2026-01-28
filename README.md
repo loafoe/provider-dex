@@ -108,6 +108,7 @@ spec:
 When `writeConnectionSecretToRef` is specified, the provider writes:
 - `clientId` - The OAuth2 client ID
 - `clientSecret` - The generated or provided client secret
+- `issuerUrl` - The issuer URL of of Dex
 
 ### Discovery
 
