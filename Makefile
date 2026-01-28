@@ -42,6 +42,7 @@ XPKG_REG_ORGS ?= xpkg.upbound.io/crossplane
 # inferred.
 XPKG_REG_ORGS_NO_PROMOTE ?= xpkg.upbound.io/crossplane
 XPKGS = provider-dex
+XPKG_IGNORE := rbac.yaml
 -include build/makelib/xpkg.mk
 
 # NOTE(hasheddan): we force image building to happen prior to xpkg build so that
