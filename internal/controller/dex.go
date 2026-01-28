@@ -26,8 +26,6 @@ import (
 	"github.com/crossplane/provider-dex/internal/controller/discovery"
 )
 
-//+kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
-
 // Setup creates all Dex controllers and adds them to the supplied manager.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
 	for _, setup := range []func(ctrl.Manager, controller.Options) error{
