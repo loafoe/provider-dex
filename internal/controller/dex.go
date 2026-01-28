@@ -26,6 +26,8 @@ import (
 	"github.com/crossplane/provider-dex/internal/controller/discovery"
 )
 
+//+kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
+
 // SetupGated creates all Dex controllers with safe-start support and adds them to
 // the supplied manager.
 func SetupGated(mgr ctrl.Manager, o controller.Options) error {
