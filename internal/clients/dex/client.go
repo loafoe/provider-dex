@@ -399,11 +399,12 @@ func buildTLSConfig(cfg Config) (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-// Close closes the gRPC connection.
+// Close is a no-op for cached connections.
+// Connections are managed by the client cache and reused across reconciliation loops.
+// The connection will be automatically cleaned up when the process exits.
 func (c *Client) Close() error {
-	if c.conn != nil {
-		return c.conn.Close()
-	}
+	// Do not close cached connections - they are reused across reconciles.
+	// The gRPC connection handles reconnection internally.
 	return nil
 }
 
