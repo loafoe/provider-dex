@@ -21,12 +21,15 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/dexidp/dex/api/v2"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 )
 
 // Config holds the configuration for connecting to a Dex gRPC server.
@@ -53,6 +56,23 @@ type Client struct {
 	dex  api.DexClient
 }
 
+// defaultServiceConfig defines retry and load balancing policy for the gRPC client.
+// This helps handle transient DNS resolution failures and connection issues.
+const defaultServiceConfig = `{
+	"loadBalancingConfig": [{"round_robin": {}}],
+	"methodConfig": [{
+		"name": [{"service": ""}],
+		"waitForReady": true,
+		"retryPolicy": {
+			"maxAttempts": 5,
+			"initialBackoff": "0.1s",
+			"maxBackoff": "5s",
+			"backoffMultiplier": 2.0,
+			"retryableStatusCodes": ["UNAVAILABLE", "UNKNOWN"]
+		}
+	}]
+}`
+
 // NewClient creates a new Dex gRPC client with the given configuration.
 func NewClient(cfg Config) (*Client, error) {
 	var opts []grpc.DialOption
@@ -68,7 +88,20 @@ func NewClient(cfg Config) (*Client, error) {
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 	}
 
-	conn, err := grpc.NewClient(cfg.Endpoint, opts...)
+	// Add default service config for retry policy and load balancing
+	opts = append(opts, grpc.WithDefaultServiceConfig(defaultServiceConfig))
+
+	// Add keepalive parameters to detect and recover from dead connections
+	opts = append(opts, grpc.WithKeepaliveParams(keepalive.ClientParameters{
+		Time:                10 * time.Second,
+		Timeout:             3 * time.Second,
+		PermitWithoutStream: true,
+	}))
+
+	// Ensure endpoint has proper DNS scheme for reliable resolution
+	endpoint := ensureDNSScheme(cfg.Endpoint)
+
+	conn, err := grpc.NewClient(endpoint, opts...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to dial Dex gRPC server")
 	}
@@ -77,6 +110,17 @@ func NewClient(cfg Config) (*Client, error) {
 		conn: conn,
 		dex:  api.NewDexClient(conn),
 	}, nil
+}
+
+// ensureDNSScheme adds the dns:/// scheme prefix if no scheme is present.
+// This ensures proper DNS resolver usage with re-resolution on failures.
+func ensureDNSScheme(endpoint string) string {
+	// If already has a scheme (e.g., dns:///, passthrough:///, unix:), return as-is
+	if strings.Contains(endpoint, "://") {
+		return endpoint
+	}
+	// Add dns:/// scheme for proper DNS resolution with re-resolution support
+	return "dns:///" + endpoint
 }
 
 func buildTLSConfig(cfg Config) (*tls.Config, error) {
