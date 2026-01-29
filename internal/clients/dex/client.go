@@ -18,8 +18,10 @@ package dex
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"strings"
@@ -52,6 +54,21 @@ type Config struct {
 
 	// InsecureSkipVerify skips TLS verification (not recommended for production).
 	InsecureSkipVerify bool
+}
+
+// cacheKey returns a unique key for caching the client connection.
+// It includes the endpoint and a hash of the TLS configuration to ensure
+// different TLS configs for the same endpoint get separate connections.
+func (c Config) cacheKey() string {
+	h := sha256.New()
+	h.Write([]byte(c.Endpoint))
+	h.Write(c.CACert)
+	h.Write(c.ClientCert)
+	h.Write(c.ClientKey)
+	if c.InsecureSkipVerify {
+		h.Write([]byte("insecure"))
+	}
+	return c.Endpoint + "-" + hex.EncodeToString(h.Sum(nil))[:16]
 }
 
 // Client wraps the Dex gRPC client.
@@ -117,8 +134,10 @@ func NewClient(cfg Config) (*Client, error) {
 	registerRetryingResolver()
 
 	// Check cache first - reuse existing connection if available
+	// Cache key includes TLS config hash to handle different certs for same endpoint
+	cacheKey := cfg.cacheKey()
 	c := getCache()
-	if client, ok := c.get(cfg.Endpoint); ok {
+	if client, ok := c.get(cacheKey); ok {
 		// Verify connection is still usable
 		if client.conn.GetState() != connectivity.Shutdown {
 			return client, nil
@@ -163,20 +182,20 @@ func NewClient(cfg Config) (*Client, error) {
 	}
 
 	// Cache the client for reuse
-	c.set(cfg.Endpoint, client)
+	c.set(cacheKey, client)
 
 	return client, nil
 }
 
-// ensureDNSScheme adds the dns:/// scheme prefix if no scheme is present.
-// This ensures proper DNS resolver usage with re-resolution on failures.
+// ensureDNSScheme adds the dnsretry:/// scheme prefix if no scheme is present.
+// This uses our custom resolver with retry logic for DNS resolution failures.
 func ensureDNSScheme(endpoint string) string {
 	// If already has a scheme (e.g., dns:///, passthrough:///, unix:), return as-is
 	if strings.Contains(endpoint, "://") {
 		return endpoint
 	}
-	// Add dns:/// scheme for proper DNS resolution with re-resolution support
-	return "dns:///" + endpoint
+	// Add dnsretry:/// scheme to use our custom resolver with retry logic
+	return "dnsretry:///" + endpoint
 }
 
 // retryingResolverBuilder wraps the default DNS resolver with retry logic
@@ -191,9 +210,10 @@ var (
 )
 
 // registerRetryingResolver registers the custom resolver once.
+// Uses scheme "dnsretry" to avoid conflict with gRPC's built-in "dns" resolver.
 func registerRetryingResolver() {
 	resolverOnce.Do(func() {
-		resolverInstance = &retryingResolverBuilder{scheme: "dns"}
+		resolverInstance = &retryingResolverBuilder{scheme: "dnsretry"}
 		resolver.Register(resolverInstance)
 	})
 }
