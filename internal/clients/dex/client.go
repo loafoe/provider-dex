@@ -86,7 +86,6 @@ type clientCache struct {
 
 var (
 	cache     = &clientCache{clients: make(map[string]*Client)}
-	cacheMu   sync.Mutex
 	cacheOnce sync.Once
 )
 
@@ -159,14 +158,14 @@ func NewClient(cfg Config) (*Client, error) {
 	}
 
 	// Add default service config for retry policy and load balancing
-	opts = append(opts, grpc.WithDefaultServiceConfig(defaultServiceConfig))
-
 	// Add keepalive parameters to detect and recover from dead connections
-	opts = append(opts, grpc.WithKeepaliveParams(keepalive.ClientParameters{
-		Time:                10 * time.Second,
-		Timeout:             3 * time.Second,
-		PermitWithoutStream: true,
-	}))
+	opts = append(opts,
+		grpc.WithDefaultServiceConfig(defaultServiceConfig),
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time:                10 * time.Second,
+			Timeout:             3 * time.Second,
+			PermitWithoutStream: true,
+		}))
 
 	// Ensure endpoint has proper DNS scheme for reliable resolution
 	endpoint := ensureDNSScheme(cfg.Endpoint)
