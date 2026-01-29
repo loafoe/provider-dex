@@ -254,16 +254,62 @@ func (r *retryingResolver) resolve() ([]resolver.Address, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	addrs, err := net.DefaultResolver.LookupHost(ctx, r.host)
+	// Use lookupWithSearchDomains which handles Kubernetes DNS search domain
+	// issues more reliably than relying on the OS resolver's ndots behavior.
+	addrs, err := r.lookupWithSearchDomains(ctx, r.host)
 	if err != nil {
+		// Check if this is a "no such host" error - might be transient with search domains
+		var dnsErr *net.DNSError
+		if errors.As(err, &dnsErr) && dnsErr.IsNotFound {
+			// Return nil to trigger retry logic - search domain iteration may succeed on retry
+			return nil, nil
+		}
 		return nil, err
 	}
 
+	// Filter out any empty or invalid addresses
 	var resolverAddrs []resolver.Address
 	for _, addr := range addrs {
-		resolverAddrs = append(resolverAddrs, resolver.Address{Addr: net.JoinHostPort(addr, r.port)})
+		if addr != "" {
+			resolverAddrs = append(resolverAddrs, resolver.Address{Addr: net.JoinHostPort(addr, r.port)})
+		}
 	}
 	return resolverAddrs, nil
+}
+
+// lookupWithSearchDomains tries to resolve the hostname, and if it fails,
+// attempts resolution with common Kubernetes search domain suffixes.
+// This handles cases where ndots settings cause inconsistent DNS behavior.
+func (r *retryingResolver) lookupWithSearchDomains(ctx context.Context, host string) ([]string, error) {
+	customResolver := &net.Resolver{PreferGo: false}
+
+	// First try the hostname as-is
+	addrs, err := customResolver.LookupHost(ctx, host)
+	if err == nil && len(addrs) > 0 {
+		return addrs, nil
+	}
+
+	// If hostname already has dots or ends with a dot (FQDN), don't try search domains
+	if strings.Contains(host, ".") {
+		return addrs, err
+	}
+
+	// Try common Kubernetes search domain patterns
+	// These are derived from typical /etc/resolv.conf search entries
+	searchSuffixes := []string{
+		".svc.cluster.local",
+		".cluster.local",
+	}
+
+	for _, suffix := range searchSuffixes {
+		fqdn := host + suffix
+		addrs, err = customResolver.LookupHost(ctx, fqdn)
+		if err == nil && len(addrs) > 0 {
+			return addrs, nil
+		}
+	}
+
+	return nil, err
 }
 
 func parseTarget(endpoint string) (host, port string, err error) {
