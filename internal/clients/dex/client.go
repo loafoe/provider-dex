@@ -29,6 +29,7 @@ import (
 	"github.com/dexidp/dex/api/v2"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
@@ -59,6 +60,39 @@ type Client struct {
 	dex  api.DexClient
 }
 
+// clientCache provides connection reuse across reconciliation loops.
+// This avoids repeated DNS lookups and connection establishment overhead.
+type clientCache struct {
+	mu      sync.RWMutex
+	clients map[string]*Client // keyed by endpoint
+}
+
+var (
+	cache     = &clientCache{clients: make(map[string]*Client)}
+	cacheMu   sync.Mutex
+	cacheOnce sync.Once
+)
+
+func getCache() *clientCache {
+	cacheOnce.Do(func() {
+		cache = &clientCache{clients: make(map[string]*Client)}
+	})
+	return cache
+}
+
+func (c *clientCache) get(endpoint string) (*Client, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	client, ok := c.clients[endpoint]
+	return client, ok
+}
+
+func (c *clientCache) set(endpoint string, client *Client) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.clients[endpoint] = client
+}
+
 // defaultServiceConfig defines retry and load balancing policy for the gRPC client.
 // This helps handle transient DNS resolution failures and connection issues.
 const defaultServiceConfig = `{
@@ -77,9 +111,20 @@ const defaultServiceConfig = `{
 }`
 
 // NewClient creates a new Dex gRPC client with the given configuration.
+// Connections are cached and reused across calls to avoid repeated DNS lookups.
 func NewClient(cfg Config) (*Client, error) {
 	// Register our custom DNS resolver with retry logic
 	registerRetryingResolver()
+
+	// Check cache first - reuse existing connection if available
+	c := getCache()
+	if client, ok := c.get(cfg.Endpoint); ok {
+		// Verify connection is still usable
+		if client.conn.GetState() != connectivity.Shutdown {
+			return client, nil
+		}
+		// Connection is dead, will create a new one
+	}
 
 	var opts []grpc.DialOption
 
@@ -112,10 +157,15 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, errors.Wrap(err, "failed to dial Dex gRPC server")
 	}
 
-	return &Client{
+	client := &Client{
 		conn: conn,
 		dex:  api.NewDexClient(conn),
-	}, nil
+	}
+
+	// Cache the client for reuse
+	c.set(cfg.Endpoint, client)
+
+	return client, nil
 }
 
 // ensureDNSScheme adds the dns:/// scheme prefix if no scheme is present.
