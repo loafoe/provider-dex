@@ -21,7 +21,9 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dexidp/dex/api/v2"
@@ -30,6 +32,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/resolver"
 )
 
 // Config holds the configuration for connecting to a Dex gRPC server.
@@ -75,6 +78,9 @@ const defaultServiceConfig = `{
 
 // NewClient creates a new Dex gRPC client with the given configuration.
 func NewClient(cfg Config) (*Client, error) {
+	// Register our custom DNS resolver with retry logic
+	registerRetryingResolver()
+
 	var opts []grpc.DialOption
 
 	// If no TLS config is provided, use insecure connection
@@ -121,6 +127,154 @@ func ensureDNSScheme(endpoint string) string {
 	}
 	// Add dns:/// scheme for proper DNS resolution with re-resolution support
 	return "dns:///" + endpoint
+}
+
+// retryingResolverBuilder wraps the default DNS resolver with retry logic
+// to handle transient "produced zero addresses" errors.
+type retryingResolverBuilder struct {
+	scheme string
+}
+
+var (
+	resolverOnce     sync.Once
+	resolverInstance *retryingResolverBuilder
+)
+
+// registerRetryingResolver registers the custom resolver once.
+func registerRetryingResolver() {
+	resolverOnce.Do(func() {
+		resolverInstance = &retryingResolverBuilder{scheme: "dns"}
+		resolver.Register(resolverInstance)
+	})
+}
+
+func (b *retryingResolverBuilder) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOptions) (resolver.Resolver, error) {
+	host, port, err := parseTarget(target.Endpoint())
+	if err != nil {
+		return nil, err
+	}
+
+	r := &retryingResolver{
+		host:      host,
+		port:      port,
+		cc:        cc,
+		stopCh:    make(chan struct{}),
+		reresolve: make(chan struct{}, 1),
+	}
+
+	go r.watcher()
+	return r, nil
+}
+
+func (b *retryingResolverBuilder) Scheme() string {
+	return b.scheme
+}
+
+type retryingResolver struct {
+	host      string
+	port      string
+	cc        resolver.ClientConn
+	stopCh    chan struct{}
+	reresolve chan struct{}
+}
+
+func (r *retryingResolver) ResolveNow(resolver.ResolveNowOptions) {
+	select {
+	case r.reresolve <- struct{}{}:
+	default:
+	}
+}
+
+func (r *retryingResolver) Close() {
+	close(r.stopCh)
+}
+
+func (r *retryingResolver) watcher() {
+	// Initial resolution with retry
+	r.resolveWithRetry()
+
+	// Re-resolve periodically and on demand
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-r.stopCh:
+			return
+		case <-ticker.C:
+			r.resolveWithRetry()
+		case <-r.reresolve:
+			r.resolveWithRetry()
+		}
+	}
+}
+
+func (r *retryingResolver) resolveWithRetry() {
+	const maxRetries = 5
+	backoff := 100 * time.Millisecond
+
+	for i := 0; i < maxRetries; i++ {
+		addrs, err := r.resolve()
+		if err != nil {
+			// Wait before retry
+			select {
+			case <-r.stopCh:
+				return
+			case <-time.After(backoff):
+				backoff *= 2
+				if backoff > 5*time.Second {
+					backoff = 5 * time.Second
+				}
+				continue
+			}
+		}
+
+		if len(addrs) > 0 {
+			_ = r.cc.UpdateState(resolver.State{Addresses: addrs})
+			return
+		}
+
+		// Zero addresses - retry with backoff
+		select {
+		case <-r.stopCh:
+			return
+		case <-time.After(backoff):
+			backoff *= 2
+			if backoff > 5*time.Second {
+				backoff = 5 * time.Second
+			}
+		}
+	}
+
+	// After all retries, report empty state (will trigger UNAVAILABLE)
+	_ = r.cc.UpdateState(resolver.State{})
+}
+
+func (r *retryingResolver) resolve() ([]resolver.Address, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	addrs, err := net.DefaultResolver.LookupHost(ctx, r.host)
+	if err != nil {
+		return nil, err
+	}
+
+	var resolverAddrs []resolver.Address
+	for _, addr := range addrs {
+		resolverAddrs = append(resolverAddrs, resolver.Address{Addr: net.JoinHostPort(addr, r.port)})
+	}
+	return resolverAddrs, nil
+}
+
+func parseTarget(endpoint string) (host, port string, err error) {
+	host, port, err = net.SplitHostPort(endpoint)
+	if err != nil {
+		// No port specified, assume endpoint is just the host
+		host = endpoint
+		port = "443" // default gRPC port
+		err = nil
+	}
+	return
 }
 
 func buildTLSConfig(cfg Config) (*tls.Config, error) {
