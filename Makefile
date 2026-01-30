@@ -45,6 +45,11 @@ XPKGS = provider-dex
 XPKG_IGNORE := rbac.yaml
 -include build/makelib/xpkg.mk
 
+# ====================================================================================
+# Setup SBOM
+
+-include makelib/sbom.mk
+
 # NOTE(hasheddan): we force image building to happen prior to xpkg build so that
 # we ensure image is present in daemon.
 xpkg.build.provider-dex: do.build.images
