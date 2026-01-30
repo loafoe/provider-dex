@@ -46,6 +46,7 @@ spec:
       key: credentials
     # Address of the Dex gRPC API
     address: dex.auth.svc.cluster.local:5557
+```
  
 ## License
 
