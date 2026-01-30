@@ -7,7 +7,7 @@ metadata:
     meta.crossplane.io/source: github.com/loafoe/provider-dex
     meta.crossplane.io/license: Apache-2.0
     meta.crossplane.io/description: |
-      A Crossplane provider to manage Dex clients.
+      A Crossplane provider to manage Dex IDP resources.
 spec:
   capabilities:
     - SafeStart
