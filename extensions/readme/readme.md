@@ -1,7 +1,3 @@
-# Dex Provider
-
-`provider-dex` is a Crossplane provider that enables the management of [Dex](https://dexidp.io/) resources using Kubernetes Custom Resources. It allows you to provision and manage Dex connectors, OAuth2 clients, and other configuration declaratively.
-
 ## Overview
 
 This provider allows platform teams to embed Dex identity management into their control planes, managing authentication configuration alongside infrastructure and application deployments.
