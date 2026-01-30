@@ -6,6 +6,14 @@
 
 This provider allows platform teams to embed Dex identity management into their control planes, managing authentication configuration alongside infrastructure and application deployments.
 
+## Prerequisites
+
+For the provider to manage connectors via gRPC, your Dex deployment must be configured with the following environment variable:
+
+```bash
+DEX_API_CONNECTORS_CRUD=true
+```
+ 
 ## Installation
 
 Install the provider by applying the following `Provider` manifest to your Crossplane cluster:
@@ -38,15 +46,7 @@ spec:
       key: credentials
     # Address of the Dex gRPC API
     address: dex.auth.svc.cluster.local:5557
-  
-  ## Prerequisites
-  
-  For the provider to manage connectors via gRPC, your Dex deployment must be configured with the following environment variable:
-  
-  ```bash
-  DEX_API_CONNECTORS_CRUD=true
-  ```
-  
+ 
 ## License
 
 This project is licensed under the Apache 2.0 License.
