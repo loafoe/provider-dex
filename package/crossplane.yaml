@@ -9,5 +9,4 @@ metadata:
     meta.crossplane.io/description: |
       A Crossplane provider to manage Dex IDP resources.
 spec:
-  capabilities:
-    - SafeStart
+  capabilities: []
