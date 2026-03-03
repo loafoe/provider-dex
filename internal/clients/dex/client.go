@@ -451,7 +451,7 @@ func (c *Client) CreateClient(ctx context.Context, client *api.Client) (*api.Cli
 func (c *Client) GetClient(ctx context.Context, id string) (*api.ClientInfo, error) {
 	resp, err := c.dex.ListClients(ctx, &api.ListClientReq{})
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to list clients")
+		return nil, errors.Wrap(err, "failed to list clients: the Dex storage backend may not support ListClients (e.g., some SQL backends require this to be enabled)")
 	}
 
 	for _, client := range resp.GetClients() {
@@ -508,7 +508,7 @@ func (c *Client) DeleteClient(ctx context.Context, id string) error {
 func (c *Client) ListClients(ctx context.Context) ([]*api.ClientInfo, error) {
 	resp, err := c.dex.ListClients(ctx, &api.ListClientReq{})
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to list clients")
+		return nil, errors.Wrap(err, "failed to list clients: the Dex storage backend may not support ListClients (e.g., some SQL backends require this to be enabled)")
 	}
 
 	return resp.GetClients(), nil
@@ -547,7 +547,7 @@ func (c *Client) CreateConnector(ctx context.Context, connector *api.Connector) 
 func (c *Client) GetConnector(ctx context.Context, id string) (*api.Connector, error) {
 	resp, err := c.dex.ListConnectors(ctx, &api.ListConnectorReq{})
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to list connectors")
+		return nil, errors.Wrap(err, "failed to list connectors: the Dex storage backend may not support ListConnectors (e.g., some SQL backends require this to be enabled)")
 	}
 
 	for _, connector := range resp.GetConnectors() {
