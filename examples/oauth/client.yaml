@@ -58,6 +58,10 @@ spec:
       - my-web-app
     public: false
     logoURL: "https://example.com/logo.png"
+    # Only users in one of these IdP groups may complete SSO for this client
+    allowedGroups:
+      - platform-admins
+      - backend-team
   providerConfigRef:
     name: dex-cluster-config
     kind: ClusterProviderConfig

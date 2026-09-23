@@ -255,10 +255,11 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	// Update status with observed values
 	cr.Status.AtProvider = v1.ClientObservation{
-		ID:           existing.GetId(),
-		Name:         existing.GetName(),
-		Public:       existing.GetPublic(),
-		RedirectURIs: existing.GetRedirectUris(),
+		ID:            existing.GetId(),
+		Name:          existing.GetName(),
+		Public:        existing.GetPublic(),
+		RedirectURIs:  existing.GetRedirectUris(),
+		AllowedGroups: existing.GetAllowedGroups(),
 	}
 
 	// Check if the resource is up to date
@@ -309,13 +310,14 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	// Build Dex client
 	dexClient := &api.Client{
-		Id:           clientID,
-		Secret:       clientSecret,
-		RedirectUris: cr.Spec.ForProvider.RedirectURIs,
-		TrustedPeers: cr.Spec.ForProvider.TrustedPeers,
-		Public:       cr.Spec.ForProvider.Public,
-		Name:         cr.Spec.ForProvider.Name,
-		LogoUrl:      cr.Spec.ForProvider.LogoURL,
+		Id:            clientID,
+		Secret:        clientSecret,
+		RedirectUris:  cr.Spec.ForProvider.RedirectURIs,
+		TrustedPeers:  cr.Spec.ForProvider.TrustedPeers,
+		AllowedGroups: cr.Spec.ForProvider.AllowedGroups,
+		Public:        cr.Spec.ForProvider.Public,
+		Name:          cr.Spec.ForProvider.Name,
+		LogoUrl:       cr.Spec.ForProvider.LogoURL,
 	}
 
 	created, err := c.dex.CreateClient(ctx, dexClient)
@@ -363,6 +365,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		clientID,
 		cr.Spec.ForProvider.RedirectURIs,
 		cr.Spec.ForProvider.TrustedPeers,
+		cr.Spec.ForProvider.AllowedGroups,
 		cr.Spec.ForProvider.Name,
 		cr.Spec.ForProvider.LogoURL,
 	)
@@ -451,6 +454,9 @@ func isClientUpToDate(spec v1.ClientParameters, existing *api.ClientInfo) bool {
 		return false
 	}
 	if !reflect.DeepEqual(spec.TrustedPeers, existing.GetTrustedPeers()) {
+		return false
+	}
+	if !reflect.DeepEqual(spec.AllowedGroups, existing.GetAllowedGroups()) {
 		return false
 	}
 	return true

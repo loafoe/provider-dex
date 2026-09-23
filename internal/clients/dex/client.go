@@ -464,13 +464,14 @@ func (c *Client) GetClient(ctx context.Context, id string) (*api.ClientInfo, err
 }
 
 // UpdateClient updates an existing OAuth2 client in Dex.
-func (c *Client) UpdateClient(ctx context.Context, id string, redirectURIs, trustedPeers []string, name, logoURL string) error {
+func (c *Client) UpdateClient(ctx context.Context, id string, redirectURIs, trustedPeers, allowedGroups []string, name, logoURL string) error {
 	req := &api.UpdateClientReq{
-		Id:           id,
-		RedirectUris: redirectURIs,
-		TrustedPeers: trustedPeers,
-		Name:         name,
-		LogoUrl:      logoURL,
+		Id:            id,
+		RedirectUris:  redirectURIs,
+		TrustedPeers:  trustedPeers,
+		AllowedGroups: allowedGroups,
+		Name:          name,
+		LogoUrl:       logoURL,
 	}
 
 	resp, err := c.dex.UpdateClient(ctx, req)

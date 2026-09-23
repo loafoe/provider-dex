@@ -64,6 +64,15 @@ type ClientParameters struct {
 	// LogoURL is the URL to the client's logo.
 	// +optional
 	LogoURL string `json:"logoURL,omitempty"`
+
+	// AllowedGroups restricts SSO for this client to users belonging to at
+	// least one of the listed IdP groups. Requires the connector to support
+	// group membership (e.g. OIDC/SAML with the groups scope/claim).
+	// Dex servers that predate this field silently ignore it (the gRPC API
+	// drops unknown fields), so the resource will never report as synced
+	// while this is set against such a server.
+	// +optional
+	AllowedGroups []string `json:"allowedGroups,omitempty"`
 }
 
 // ClientObservation are the observable fields of a Dex OAuth2 Client.
@@ -79,6 +88,9 @@ type ClientObservation struct {
 
 	// RedirectURIs is the list of redirect URIs configured for this client.
 	RedirectURIs []string `json:"redirectURIs,omitempty"`
+
+	// AllowedGroups is the list of IdP groups allowed to use this client.
+	AllowedGroups []string `json:"allowedGroups,omitempty"`
 }
 
 // A ClientSpec defines the desired state of a Client.

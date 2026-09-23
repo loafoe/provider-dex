@@ -60,6 +60,17 @@ spec:
                 description: ClientParameters are the configurable fields of a Dex
                   OAuth2 Client.
                 properties:
+                  allowedGroups:
+                    description: |-
+                      AllowedGroups restricts SSO for this client to users belonging to at
+                      least one of the listed IdP groups. Requires the connector to support
+                      group membership (e.g. OIDC/SAML with the groups scope/claim).
+                      Dex servers that predate this field silently ignore it (the gRPC API
+                      drops unknown fields), so the resource will never report as synced
+                      while this is set against such a server.
+                    items:
+                      type: string
+                    type: array
                   id:
                     description: ID is the OAuth2 client ID. If not specified, the
                       metadata.name will be used.
@@ -182,6 +193,12 @@ spec:
                 description: ClientObservation are the observable fields of a Dex
                   OAuth2 Client.
                 properties:
+                  allowedGroups:
+                    description: AllowedGroups is the list of IdP groups allowed to
+                      use this client.
+                    items:
+                      type: string
+                    type: array
                   id:
                     description: ID is the actual client ID in Dex.
                     type: string
