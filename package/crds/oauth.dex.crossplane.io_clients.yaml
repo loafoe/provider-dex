@@ -117,6 +117,25 @@ spec:
                     - name
                     - namespace
                     type: object
+                  ssoSharedWith:
+                    description: |-
+                      SSOSharedWith lists the client IDs that may reuse this client's
+                      authentication session. When a user authenticates for this client, the
+                      listed clients can skip authentication and reuse the session instead.
+                      The sharing is unidirectional: listing a client here does not let this
+                      client reuse that client's session.
+
+                      The special value "*" shares the session with every client. Leaving this
+                      unset (nil) defers to the server-wide sessions.ssoSharedWithDefault
+                      policy; an explicit empty list shares with nobody.
+
+                      This is separate from TrustedPeers, which controls which clients may
+                      issue tokens on behalf of this one. A client that is gated by
+                      allowedGroups should not be listed by any other client, and should not
+                      list any other client: a reused session does not re-check allowedGroups.
+                    items:
+                      type: string
+                    type: array
                   trustedPeers:
                     description: |-
                       TrustedPeers is a list of client IDs that are allowed to exchange tokens
@@ -211,6 +230,13 @@ spec:
                   redirectURIs:
                     description: RedirectURIs is the list of redirect URIs configured
                       for this client.
+                    items:
+                      type: string
+                    type: array
+                  ssoSharedWith:
+                    description: |-
+                      SSOSharedWith is the list of client IDs that may reuse this client's
+                      authentication session.
                     items:
                       type: string
                     type: array

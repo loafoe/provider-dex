@@ -260,6 +260,7 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		Public:        existing.GetPublic(),
 		RedirectURIs:  existing.GetRedirectUris(),
 		AllowedGroups: existing.GetAllowedGroups(),
+		SSOSharedWith: existing.GetSsoSharedWith(),
 	}
 
 	// Check if the resource is up to date
@@ -318,6 +319,7 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		Public:        cr.Spec.ForProvider.Public,
 		Name:          cr.Spec.ForProvider.Name,
 		LogoUrl:       cr.Spec.ForProvider.LogoURL,
+		SsoSharedWith: cr.Spec.ForProvider.SSOSharedWith,
 	}
 
 	created, err := c.dex.CreateClient(ctx, dexClient)
@@ -366,6 +368,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		cr.Spec.ForProvider.RedirectURIs,
 		cr.Spec.ForProvider.TrustedPeers,
 		cr.Spec.ForProvider.AllowedGroups,
+		cr.Spec.ForProvider.SSOSharedWith,
 		cr.Spec.ForProvider.Name,
 		cr.Spec.ForProvider.LogoURL,
 	)
@@ -457,6 +460,18 @@ func isClientUpToDate(spec v1.ClientParameters, existing *api.ClientInfo) bool {
 		return false
 	}
 	if !reflect.DeepEqual(spec.AllowedGroups, existing.GetAllowedGroups()) {
+		return false
+	}
+	// ssoSharedWith is only managed when the spec names at least one client.
+	//
+	// The gRPC API cannot express "explicitly share with nobody": a repeated
+	// field with no elements is indistinguishable from an unset one, and Dex
+	// only touches sso_shared_with when the request carries it. Reporting
+	// drift for an empty spec would therefore loop forever - the provider
+	// would keep calling Update, which would never clear the value. Leaving
+	// the field out of the spec leaves it to the server-wide
+	// sessions.ssoSharedWithDefault policy instead.
+	if len(spec.SSOSharedWith) > 0 && !reflect.DeepEqual(spec.SSOSharedWith, existing.GetSsoSharedWith()) {
 		return false
 	}
 	return true

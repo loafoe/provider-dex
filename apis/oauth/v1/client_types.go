@@ -73,6 +73,23 @@ type ClientParameters struct {
 	// while this is set against such a server.
 	// +optional
 	AllowedGroups []string `json:"allowedGroups,omitempty"`
+
+	// SSOSharedWith lists the client IDs that may reuse this client's
+	// authentication session. When a user authenticates for this client, the
+	// listed clients can skip authentication and reuse the session instead.
+	// The sharing is unidirectional: listing a client here does not let this
+	// client reuse that client's session.
+	//
+	// The special value "*" shares the session with every client. Leaving this
+	// unset (nil) defers to the server-wide sessions.ssoSharedWithDefault
+	// policy; an explicit empty list shares with nobody.
+	//
+	// This is separate from TrustedPeers, which controls which clients may
+	// issue tokens on behalf of this one. A client that is gated by
+	// allowedGroups should not be listed by any other client, and should not
+	// list any other client: a reused session does not re-check allowedGroups.
+	// +optional
+	SSOSharedWith []string `json:"ssoSharedWith,omitempty"`
 }
 
 // ClientObservation are the observable fields of a Dex OAuth2 Client.
@@ -91,6 +108,10 @@ type ClientObservation struct {
 
 	// AllowedGroups is the list of IdP groups allowed to use this client.
 	AllowedGroups []string `json:"allowedGroups,omitempty"`
+
+	// SSOSharedWith is the list of client IDs that may reuse this client's
+	// authentication session.
+	SSOSharedWith []string `json:"ssoSharedWith,omitempty"`
 }
 
 // A ClientSpec defines the desired state of a Client.

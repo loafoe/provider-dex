@@ -62,6 +62,12 @@ spec:
     allowedGroups:
       - platform-admins
       - backend-team
+    # Clients that may reuse this client's login session. "*" shares with every
+    # client. Leave it out to defer to the server-wide ssoSharedWithDefault
+    # policy. A client gated by allowedGroups should neither be listed here nor
+    # listed by anyone else: a reused session does not re-check allowedGroups.
+    ssoSharedWith:
+      - my-web-app
   providerConfigRef:
     name: dex-cluster-config
     kind: ClusterProviderConfig

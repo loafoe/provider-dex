@@ -20,6 +20,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/dexidp/dex/api/v2"
 	"github.com/google/go-cmp/cmp"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 
+	v1 "github.com/crossplane/provider-dex/apis/oauth/v1"
 	dexclient "github.com/crossplane/provider-dex/internal/clients/dex"
 )
 
@@ -72,6 +74,101 @@ func TestObserve(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("\n%s\ne.Observe(...): -want, +got:\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestIsClientUpToDate(t *testing.T) {
+	type args struct {
+		spec     v1.ClientParameters
+		existing *api.ClientInfo
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   bool
+	}{
+		"EverythingMatches": {
+			reason: "A client with no SSO sharing configured is up to date.",
+			args: args{
+				spec:     v1.ClientParameters{Name: "example", RedirectURIs: []string{"http://localhost/callback"}},
+				existing: &api.ClientInfo{Id: "example", Name: "example", RedirectUris: []string{"http://localhost/callback"}},
+			},
+			want: true,
+		},
+		"SSOSharedWithMatches": {
+			reason: "A client whose ssoSharedWith matches the observed value is up to date.",
+			args: args{
+				spec: v1.ClientParameters{
+					Name:          "example",
+					RedirectURIs:  []string{"http://localhost/callback"},
+					SSOSharedWith: []string{"other-client"},
+				},
+				existing: &api.ClientInfo{
+					Id:            "example",
+					Name:          "example",
+					RedirectUris:  []string{"http://localhost/callback"},
+					SsoSharedWith: []string{"other-client"},
+				},
+			},
+			want: true,
+		},
+		"SSOSharedWithDrift": {
+			reason: "A client whose ssoSharedWith differs from the observed value is not up to date.",
+			args: args{
+				spec: v1.ClientParameters{
+					Name:          "example",
+					RedirectURIs:  []string{"http://localhost/callback"},
+					SSOSharedWith: []string{"other-client"},
+				},
+				existing: &api.ClientInfo{
+					Id:            "example",
+					Name:          "example",
+					RedirectUris:  []string{"http://localhost/callback"},
+					SsoSharedWith: []string{"yet-another-client"},
+				},
+			},
+			want: false,
+		},
+		"SSOSharedWithUnmanaged": {
+			reason: "A client with no ssoSharedWith in the spec is up to date even when the server has one, because the API cannot clear it.",
+			args: args{
+				spec: v1.ClientParameters{Name: "example", RedirectURIs: []string{"http://localhost/callback"}},
+				existing: &api.ClientInfo{
+					Id:            "example",
+					Name:          "example",
+					RedirectUris:  []string{"http://localhost/callback"},
+					SsoSharedWith: []string{"other-client"},
+				},
+			},
+			want: true,
+		},
+		"SSOSharedWithEmptySpec": {
+			reason: "An explicitly empty ssoSharedWith does not report drift, because the API cannot express it.",
+			args: args{
+				spec: v1.ClientParameters{
+					Name:          "example",
+					RedirectURIs:  []string{"http://localhost/callback"},
+					SSOSharedWith: []string{},
+				},
+				existing: &api.ClientInfo{
+					Id:            "example",
+					Name:          "example",
+					RedirectUris:  []string{"http://localhost/callback"},
+					SsoSharedWith: []string{"other-client"},
+				},
+			},
+			want: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := isClientUpToDate(tc.args.spec, tc.args.existing)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\n%s\nisClientUpToDate(...): -want, +got:\n%s\n", tc.reason, diff)
 			}
 		})
 	}

@@ -98,6 +98,8 @@ spec:
 | `forProvider.name` | string | Human-readable client name |
 | `forProvider.redirectURIs` | []string | Allowed redirect URIs |
 | `forProvider.trustedPeers` | []string | Client IDs that can exchange tokens |
+| `forProvider.allowedGroups` | []string | IdP groups allowed to complete SSO for this client |
+| `forProvider.ssoSharedWith` | []string | Client IDs that may reuse this client's login session |
 | `forProvider.public` | bool | Public client (no secret required) |
 | `forProvider.logoURL` | string | URL to client logo |
 | `forProvider.secret` | string | Client secret (auto-generated if not set) |
