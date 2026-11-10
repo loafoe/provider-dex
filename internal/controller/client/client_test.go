@@ -79,11 +79,13 @@ func TestObserve(t *testing.T) {
 	}
 }
 
-// Values the ssoSharedWith tests share
+// Values the ssoSharedWith and allowedGroups tests share
 const (
 	exampleID       = "example"
 	otherClientID   = "other-client"
 	exampleCallback = "http://localhost/callback"
+	teamA           = "team-a"
+	teamB           = "team-b"
 )
 
 func TestIsClientUpToDate(t *testing.T) {
@@ -169,6 +171,36 @@ func TestIsClientUpToDate(t *testing.T) {
 			},
 			want: true,
 		},
+		"AllowedGroupsMatches": {
+			reason: "A client whose allowedGroups matches the observed value is up to date.",
+			args: args{
+				spec: v1.ClientParameters{
+					Name:          exampleID,
+					RedirectURIs:  []string{exampleCallback},
+					AllowedGroups: []string{teamA},
+				},
+				existing: &api.ClientInfo{
+					Id:            exampleID,
+					Name:          exampleID,
+					RedirectUris:  []string{exampleCallback},
+					AllowedGroups: []string{teamA},
+				},
+			},
+			want: true,
+		},
+		"AllowedGroupsNotClearedYet": {
+			reason: "Unlike ssoSharedWith, allowedGroups is fully managed: an empty spec must report drift against a server that still has groups set, since the fix lets the provider actually clear it.",
+			args: args{
+				spec: v1.ClientParameters{Name: exampleID, RedirectURIs: []string{exampleCallback}},
+				existing: &api.ClientInfo{
+					Id:            exampleID,
+					Name:          exampleID,
+					RedirectUris:  []string{exampleCallback},
+					AllowedGroups: []string{teamA},
+				},
+			},
+			want: false,
+		},
 	}
 
 	for name, tc := range cases {
@@ -245,5 +277,27 @@ func TestUpdateRequest(t *testing.T) {
 	}
 	if len(req.GetPostLogoutRedirectUris()) != 1 || req.GetId() != bffID || req.GetName() != bffID {
 		t.Errorf("unexpected request: id=%q name=%q uris=%v", req.GetId(), req.GetName(), req.GetPostLogoutRedirectUris())
+	}
+}
+
+func TestUpdateRequestAllowedGroups(t *testing.T) {
+	// AllowedGroups must always be sent as a non-nil StringList, even when the
+	// spec leaves it empty: unlike a bare repeated field, StringList's presence
+	// is tracked by this pointer, so a nil spec value must still produce a
+	// non-nil (but empty) wrapper - that's what tells Dex to clear it rather
+	// than leave it alone.
+	spec := v1.ClientParameters{Name: bffID, RedirectURIs: []string{bffCallback}}
+	req := updateRequest(bffID, spec)
+	if req.GetAllowedGroups() == nil {
+		t.Fatal("AllowedGroups must be sent even when the spec leaves it unset, so Dex clears it")
+	}
+	if len(req.GetAllowedGroups().GetValues()) != 0 {
+		t.Errorf("unset spec must produce an empty values list, got %v", req.GetAllowedGroups().GetValues())
+	}
+
+	spec.AllowedGroups = []string{teamA, teamB}
+	req = updateRequest(bffID, spec)
+	if diff := cmp.Diff([]string{teamA, teamB}, req.GetAllowedGroups().GetValues()); diff != "" {
+		t.Errorf("AllowedGroups mismatch: -want, +got:\n%s", diff)
 	}
 }

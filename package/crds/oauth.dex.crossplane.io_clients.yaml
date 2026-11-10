@@ -67,7 +67,10 @@ spec:
                       group membership (e.g. OIDC/SAML with the groups scope/claim).
                       Dex servers that predate this field silently ignore it (the gRPC API
                       drops unknown fields), so the resource will never report as synced
-                      while this is set against such a server.
+                      while this is set against such a server. Clearing a previously-set
+                      value (removing it from the spec) requires a Dex server with the
+                      AllowedGroups-clearing fix (philips-forks/dex v2.46.1-dip.2 or newer) -
+                      older servers silently keep the stale groups.
                     items:
                       type: string
                     type: array

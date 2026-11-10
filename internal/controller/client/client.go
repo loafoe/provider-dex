@@ -445,10 +445,13 @@ func generateSecret(length int) (string, error) {
 // postLogoutRedirectURIs, refreshTokenLifetime) are left out when the spec leaves them out.
 func updateRequest(id string, spec v1.ClientParameters) *api.UpdateClientReq {
 	req := &api.UpdateClientReq{
-		Id:            id,
-		RedirectUris:  spec.RedirectURIs,
-		TrustedPeers:  spec.TrustedPeers,
-		AllowedGroups: spec.AllowedGroups,
+		Id:           id,
+		RedirectUris: spec.RedirectURIs,
+		TrustedPeers: spec.TrustedPeers,
+		// Always sent, even empty: unlike a bare repeated field, StringList's
+		// presence is tracked by this pointer, so Dex can tell "clear the
+		// restriction" apart from "leave it alone" and fully apply the spec.
+		AllowedGroups: &api.StringList{Values: spec.AllowedGroups},
 		SsoSharedWith: spec.SSOSharedWith,
 		Name:          spec.Name,
 		LogoUrl:       spec.LogoURL,
