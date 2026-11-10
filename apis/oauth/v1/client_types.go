@@ -90,6 +90,22 @@ type ClientParameters struct {
 	// list any other client: a reused session does not re-check allowedGroups.
 	// +optional
 	SSOSharedWith []string `json:"ssoSharedWith,omitempty"`
+
+	// PostLogoutRedirectURIs are the URIs Dex may send the browser back to after
+	// RP-initiated logout (the post_logout_redirect_uri of a /logout request).
+	// Dex refuses any other.
+	// +optional
+	PostLogoutRedirectURIs []string `json:"postLogoutRedirectURIs,omitempty"`
+
+	// RefreshTokenLifetime ties this client's refresh tokens to the browser session
+	// that issued them. "standalone" (Dex's default) lets a refresh token outlive
+	// that session, as a CLI login must. "session" ends it with the session: Dex
+	// revokes it on logout and refuses it once the session expires. Use it for
+	// clients that are a browser session and nothing else, such as a
+	// backend-for-frontend. Unset leaves the server's value alone.
+	// +kubebuilder:validation:Enum=standalone;session
+	// +optional
+	RefreshTokenLifetime string `json:"refreshTokenLifetime,omitempty"`
 }
 
 // ClientObservation are the observable fields of a Dex OAuth2 Client.
@@ -112,6 +128,12 @@ type ClientObservation struct {
 	// SSOSharedWith is the list of client IDs that may reuse this client's
 	// authentication session.
 	SSOSharedWith []string `json:"ssoSharedWith,omitempty"`
+
+	// PostLogoutRedirectURIs is the list of post-logout redirect URIs.
+	PostLogoutRedirectURIs []string `json:"postLogoutRedirectURIs,omitempty"`
+
+	// RefreshTokenLifetime is "standalone" or "session" (empty: standalone).
+	RefreshTokenLifetime string `json:"refreshTokenLifetime,omitempty"`
 }
 
 // A ClientSpec defines the desired state of a Client.

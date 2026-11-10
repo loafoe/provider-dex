@@ -261,6 +261,9 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 		RedirectURIs:  existing.GetRedirectUris(),
 		AllowedGroups: existing.GetAllowedGroups(),
 		SSOSharedWith: existing.GetSsoSharedWith(),
+
+		PostLogoutRedirectURIs: existing.GetPostLogoutRedirectUris(),
+		RefreshTokenLifetime:   existing.GetRefreshTokenLifetime(),
 	}
 
 	// Check if the resource is up to date
@@ -320,6 +323,9 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 		Name:          cr.Spec.ForProvider.Name,
 		LogoUrl:       cr.Spec.ForProvider.LogoURL,
 		SsoSharedWith: cr.Spec.ForProvider.SSOSharedWith,
+
+		PostLogoutRedirectUris: cr.Spec.ForProvider.PostLogoutRedirectURIs,
+		RefreshTokenLifetime:   cr.Spec.ForProvider.RefreshTokenLifetime,
 	}
 
 	created, err := c.dex.CreateClient(ctx, dexClient)
@@ -362,16 +368,7 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		clientID = cr.GetName()
 	}
 
-	err := c.dex.UpdateClient(
-		ctx,
-		clientID,
-		cr.Spec.ForProvider.RedirectURIs,
-		cr.Spec.ForProvider.TrustedPeers,
-		cr.Spec.ForProvider.AllowedGroups,
-		cr.Spec.ForProvider.SSOSharedWith,
-		cr.Spec.ForProvider.Name,
-		cr.Spec.ForProvider.LogoURL,
-	)
+	err := c.dex.UpdateClient(ctx, updateRequest(clientID, cr.Spec.ForProvider))
 	if err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, errUpdate)
 	}
@@ -443,6 +440,35 @@ func generateSecret(length int) (string, error) {
 
 // isClientUpToDate checks if the Dex client matches the desired spec.
 // Note: Uses ClientInfo since ListClients returns ClientInfo (without secret).
+// updateRequest is the UpdateClient call for spec. Dex changes only what a request carries,
+// so the fields the provider manages only when set (ssoSharedWith,
+// postLogoutRedirectURIs, refreshTokenLifetime) are left out when the spec leaves them out.
+func updateRequest(id string, spec v1.ClientParameters) *api.UpdateClientReq {
+	req := &api.UpdateClientReq{
+		Id:            id,
+		RedirectUris:  spec.RedirectURIs,
+		TrustedPeers:  spec.TrustedPeers,
+		AllowedGroups: spec.AllowedGroups,
+		SsoSharedWith: spec.SSOSharedWith,
+		Name:          spec.Name,
+		LogoUrl:       spec.LogoURL,
+
+		PostLogoutRedirectUris: spec.PostLogoutRedirectURIs,
+	}
+	if l := spec.RefreshTokenLifetime; l != "" {
+		req.RefreshTokenLifetime = &l
+	}
+	return req
+}
+
+// refreshTokenLifetimeOrDefault is the lifetime Dex applies: empty means standalone.
+func refreshTokenLifetimeOrDefault(l string) string {
+	if l == "" {
+		return "standalone"
+	}
+	return l
+}
+
 func isClientUpToDate(spec v1.ClientParameters, existing *api.ClientInfo) bool {
 	if spec.Name != existing.GetName() {
 		return false
@@ -472,6 +498,16 @@ func isClientUpToDate(spec v1.ClientParameters, existing *api.ClientInfo) bool {
 	// the field out of the spec leaves it to the server-wide
 	// sessions.ssoSharedWithDefault policy instead.
 	if len(spec.SSOSharedWith) > 0 && !reflect.DeepEqual(spec.SSOSharedWith, existing.GetSsoSharedWith()) {
+		return false
+	}
+	// postLogoutRedirectURIs: managed only when set, for the same reason as ssoSharedWith
+	// (an empty list cannot be sent, so it could never clear what is there).
+	if len(spec.PostLogoutRedirectURIs) > 0 && !reflect.DeepEqual(spec.PostLogoutRedirectURIs, existing.GetPostLogoutRedirectUris()) {
+		return false
+	}
+	// refreshTokenLifetime: managed only when set; Dex reports its default as "".
+	if spec.RefreshTokenLifetime != "" &&
+		refreshTokenLifetimeOrDefault(spec.RefreshTokenLifetime) != refreshTokenLifetimeOrDefault(existing.GetRefreshTokenLifetime()) {
 		return false
 	}
 	return true

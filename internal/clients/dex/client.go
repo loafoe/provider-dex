@@ -463,25 +463,16 @@ func (c *Client) GetClient(ctx context.Context, id string) (*api.ClientInfo, err
 	return nil, nil // Client not found
 }
 
-// UpdateClient updates an existing OAuth2 client in Dex.
-func (c *Client) UpdateClient(ctx context.Context, id string, redirectURIs, trustedPeers, allowedGroups, ssoSharedWith []string, name, logoURL string) error {
-	req := &api.UpdateClientReq{
-		Id:            id,
-		RedirectUris:  redirectURIs,
-		TrustedPeers:  trustedPeers,
-		AllowedGroups: allowedGroups,
-		SsoSharedWith: ssoSharedWith,
-		Name:          name,
-		LogoUrl:       logoURL,
-	}
-
+// UpdateClient updates an existing OAuth2 client in Dex. Dex leaves every field the
+// request does not carry (a nil list, a nil optional) as it is.
+func (c *Client) UpdateClient(ctx context.Context, req *api.UpdateClientReq) error {
 	resp, err := c.dex.UpdateClient(ctx, req)
 	if err != nil {
 		return errors.Wrap(err, "failed to update client")
 	}
 
 	if resp.GetNotFound() {
-		return fmt.Errorf("client with ID %q not found", id)
+		return fmt.Errorf("client with ID %q not found", req.GetId())
 	}
 
 	return nil

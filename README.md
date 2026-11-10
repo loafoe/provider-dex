@@ -100,6 +100,8 @@ spec:
 | `forProvider.trustedPeers` | []string | Client IDs that can exchange tokens |
 | `forProvider.allowedGroups` | []string | IdP groups allowed to complete SSO for this client |
 | `forProvider.ssoSharedWith` | []string | Client IDs that may reuse this client's login session |
+| `forProvider.postLogoutRedirectURIs` | []string | Where Dex may send the browser after RP-initiated logout (`/logout?post_logout_redirect_uri=`) |
+| `forProvider.refreshTokenLifetime` | string | `standalone` (default) or `session`: refresh tokens end with the browser session that issued them, revoked on logout |
 | `forProvider.public` | bool | Public client (no secret required) |
 | `forProvider.logoURL` | string | URL to client logo |
 | `forProvider.secret` | string | Client secret (auto-generated if not set) |

@@ -173,3 +173,62 @@ func TestIsClientUpToDate(t *testing.T) {
 		})
 	}
 }
+
+func TestIsClientUpToDateLogoutFields(t *testing.T) {
+	base := func() (v1.ClientParameters, *api.ClientInfo) {
+		return v1.ClientParameters{Name: "fleetcom", RedirectURIs: []string{"https://x/callback"}},
+			&api.ClientInfo{Id: "fleetcom", Name: "fleetcom", RedirectUris: []string{"https://x/callback"}}
+	}
+	cases := map[string]struct {
+		mutate func(*v1.ClientParameters, *api.ClientInfo)
+		want   bool
+	}{
+		"UnsetIsNotManaged": {func(s *v1.ClientParameters, e *api.ClientInfo) {
+			e.PostLogoutRedirectUris = []string{"https://x/signed-out"}
+			e.RefreshTokenLifetime = "session"
+		}, true},
+		"PostLogoutMatches": {func(s *v1.ClientParameters, e *api.ClientInfo) {
+			s.PostLogoutRedirectURIs = []string{"https://x/signed-out"}
+			e.PostLogoutRedirectUris = []string{"https://x/signed-out"}
+		}, true},
+		"PostLogoutDrift": {func(s *v1.ClientParameters, e *api.ClientInfo) {
+			s.PostLogoutRedirectURIs = []string{"https://x/signed-out"}
+		}, false},
+		"LifetimeMatches": {func(s *v1.ClientParameters, e *api.ClientInfo) {
+			s.RefreshTokenLifetime = "session"
+			e.RefreshTokenLifetime = "session"
+		}, true},
+		"LifetimeDrift": {func(s *v1.ClientParameters, e *api.ClientInfo) {
+			s.RefreshTokenLifetime = "session"
+		}, false},
+		"StandaloneIsDexDefault": {func(s *v1.ClientParameters, e *api.ClientInfo) {
+			s.RefreshTokenLifetime = "standalone"
+		}, true},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			spec, existing := base()
+			tc.mutate(&spec, existing)
+			if got := isClientUpToDate(spec, existing); got != tc.want {
+				t.Errorf("isClientUpToDate() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestUpdateRequest(t *testing.T) {
+	spec := v1.ClientParameters{Name: "fleetcom", RedirectURIs: []string{"https://x/callback"}}
+	req := updateRequest("fleetcom", spec)
+	if req.RefreshTokenLifetime != nil || req.PostLogoutRedirectUris != nil {
+		t.Errorf("unset fields must stay out of the request, got lifetime=%v uris=%v", req.RefreshTokenLifetime, req.PostLogoutRedirectUris)
+	}
+	spec.RefreshTokenLifetime = "session"
+	spec.PostLogoutRedirectURIs = []string{"https://x/signed-out"}
+	req = updateRequest("fleetcom", spec)
+	if req.GetRefreshTokenLifetime() != "session" || req.RefreshTokenLifetime == nil {
+		t.Errorf("lifetime not sent: %v", req.RefreshTokenLifetime)
+	}
+	if len(req.GetPostLogoutRedirectUris()) != 1 || req.GetId() != "fleetcom" || req.GetName() != "fleetcom" {
+		t.Errorf("unexpected request: %+v", req)
+	}
+}

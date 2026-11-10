@@ -93,3 +93,26 @@ spec:
   providerConfigRef:
     name: dex-cluster-config
     kind: ClusterProviderConfig
+---
+# Browser-only client (a backend-for-frontend) whose login ends with the Dex session:
+# refreshTokenLifetime: session makes Dex revoke its refresh tokens on logout (and refuse
+# them once the session expires), and postLogoutRedirectURIs lists where /logout may send
+# the browser afterwards. Leave both out for CLI clients, whose logins must survive a
+# web logout.
+apiVersion: oauth.dex.crossplane.io/v1
+kind: Client
+metadata:
+  name: my-bff
+  namespace: default
+spec:
+  forProvider:
+    name: "My Backend-for-Frontend"
+    public: true
+    redirectURIs:
+      - "https://bff.example.com/callback"
+    postLogoutRedirectURIs:
+      - "https://bff.example.com/signed-out"
+    refreshTokenLifetime: session
+  providerConfigRef:
+    name: dex-cluster-config
+    kind: ClusterProviderConfig

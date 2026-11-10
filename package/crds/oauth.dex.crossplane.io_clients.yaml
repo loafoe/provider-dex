@@ -81,6 +81,14 @@ spec:
                   name:
                     description: Name is a human-readable name for the client.
                     type: string
+                  postLogoutRedirectURIs:
+                    description: |-
+                      PostLogoutRedirectURIs are the URIs Dex may send the browser back to after
+                      RP-initiated logout (the post_logout_redirect_uri of a /logout request).
+                      Dex refuses any other.
+                    items:
+                      type: string
+                    type: array
                   public:
                     description: |-
                       Public indicates whether this is a public client (e.g., a native app or SPA).
@@ -93,6 +101,18 @@ spec:
                       type: string
                     minItems: 1
                     type: array
+                  refreshTokenLifetime:
+                    description: |-
+                      RefreshTokenLifetime ties this client's refresh tokens to the browser session
+                      that issued them. "standalone" (Dex's default) lets a refresh token outlive
+                      that session, as a CLI login must. "session" ends it with the session: Dex
+                      revokes it on logout and refuses it once the session expires. Use it for
+                      clients that are a browser session and nothing else, such as a
+                      backend-for-frontend. Unset leaves the server's value alone.
+                    enum:
+                    - standalone
+                    - session
+                    type: string
                   secret:
                     description: |-
                       Secret is the OAuth2 client secret. If not specified, one will be generated.
@@ -224,6 +244,12 @@ spec:
                   name:
                     description: Name is the client name.
                     type: string
+                  postLogoutRedirectURIs:
+                    description: PostLogoutRedirectURIs is the list of post-logout
+                      redirect URIs.
+                    items:
+                      type: string
+                    type: array
                   public:
                     description: Public indicates whether this is a public client.
                     type: boolean
@@ -233,6 +259,10 @@ spec:
                     items:
                       type: string
                     type: array
+                  refreshTokenLifetime:
+                    description: 'RefreshTokenLifetime is "standalone" or "session"
+                      (empty: standalone).'
+                    type: string
                   ssoSharedWith:
                     description: |-
                       SSOSharedWith is the list of client IDs that may reuse this client's
