@@ -79,6 +79,13 @@ func TestObserve(t *testing.T) {
 	}
 }
 
+// Values the ssoSharedWith tests share
+const (
+	exampleID       = "example"
+	otherClientID   = "other-client"
+	exampleCallback = "http://localhost/callback"
+)
+
 func TestIsClientUpToDate(t *testing.T) {
 	type args struct {
 		spec     v1.ClientParameters
@@ -93,8 +100,8 @@ func TestIsClientUpToDate(t *testing.T) {
 		"EverythingMatches": {
 			reason: "A client with no SSO sharing configured is up to date.",
 			args: args{
-				spec:     v1.ClientParameters{Name: "example", RedirectURIs: []string{"http://localhost/callback"}},
-				existing: &api.ClientInfo{Id: "example", Name: "example", RedirectUris: []string{"http://localhost/callback"}},
+				spec:     v1.ClientParameters{Name: exampleID, RedirectURIs: []string{exampleCallback}},
+				existing: &api.ClientInfo{Id: exampleID, Name: exampleID, RedirectUris: []string{exampleCallback}},
 			},
 			want: true,
 		},
@@ -102,15 +109,15 @@ func TestIsClientUpToDate(t *testing.T) {
 			reason: "A client whose ssoSharedWith matches the observed value is up to date.",
 			args: args{
 				spec: v1.ClientParameters{
-					Name:          "example",
-					RedirectURIs:  []string{"http://localhost/callback"},
-					SSOSharedWith: []string{"other-client"},
+					Name:          exampleID,
+					RedirectURIs:  []string{exampleCallback},
+					SSOSharedWith: []string{otherClientID},
 				},
 				existing: &api.ClientInfo{
-					Id:            "example",
-					Name:          "example",
-					RedirectUris:  []string{"http://localhost/callback"},
-					SsoSharedWith: []string{"other-client"},
+					Id:            exampleID,
+					Name:          exampleID,
+					RedirectUris:  []string{exampleCallback},
+					SsoSharedWith: []string{otherClientID},
 				},
 			},
 			want: true,
@@ -119,14 +126,14 @@ func TestIsClientUpToDate(t *testing.T) {
 			reason: "A client whose ssoSharedWith differs from the observed value is not up to date.",
 			args: args{
 				spec: v1.ClientParameters{
-					Name:          "example",
-					RedirectURIs:  []string{"http://localhost/callback"},
-					SSOSharedWith: []string{"other-client"},
+					Name:          exampleID,
+					RedirectURIs:  []string{exampleCallback},
+					SSOSharedWith: []string{otherClientID},
 				},
 				existing: &api.ClientInfo{
-					Id:            "example",
-					Name:          "example",
-					RedirectUris:  []string{"http://localhost/callback"},
+					Id:            exampleID,
+					Name:          exampleID,
+					RedirectUris:  []string{exampleCallback},
 					SsoSharedWith: []string{"yet-another-client"},
 				},
 			},
@@ -135,12 +142,12 @@ func TestIsClientUpToDate(t *testing.T) {
 		"SSOSharedWithUnmanaged": {
 			reason: "A client with no ssoSharedWith in the spec is up to date even when the server has one, because the API cannot clear it.",
 			args: args{
-				spec: v1.ClientParameters{Name: "example", RedirectURIs: []string{"http://localhost/callback"}},
+				spec: v1.ClientParameters{Name: exampleID, RedirectURIs: []string{exampleCallback}},
 				existing: &api.ClientInfo{
-					Id:            "example",
-					Name:          "example",
-					RedirectUris:  []string{"http://localhost/callback"},
-					SsoSharedWith: []string{"other-client"},
+					Id:            exampleID,
+					Name:          exampleID,
+					RedirectUris:  []string{exampleCallback},
+					SsoSharedWith: []string{otherClientID},
 				},
 			},
 			want: true,
@@ -149,15 +156,15 @@ func TestIsClientUpToDate(t *testing.T) {
 			reason: "An explicitly empty ssoSharedWith does not report drift, because the API cannot express it.",
 			args: args{
 				spec: v1.ClientParameters{
-					Name:          "example",
-					RedirectURIs:  []string{"http://localhost/callback"},
+					Name:          exampleID,
+					RedirectURIs:  []string{exampleCallback},
 					SSOSharedWith: []string{},
 				},
 				existing: &api.ClientInfo{
-					Id:            "example",
-					Name:          "example",
-					RedirectUris:  []string{"http://localhost/callback"},
-					SsoSharedWith: []string{"other-client"},
+					Id:            exampleID,
+					Name:          exampleID,
+					RedirectUris:  []string{exampleCallback},
+					SsoSharedWith: []string{otherClientID},
 				},
 			},
 			want: true,
@@ -174,35 +181,42 @@ func TestIsClientUpToDate(t *testing.T) {
 	}
 }
 
+// Values the logout-field tests share
+const (
+	bffID        = "fleetcom"
+	bffCallback  = "https://x/callback"
+	bffLoggedOut = "https://x/signed-out"
+)
+
 func TestIsClientUpToDateLogoutFields(t *testing.T) {
 	base := func() (v1.ClientParameters, *api.ClientInfo) {
-		return v1.ClientParameters{Name: "fleetcom", RedirectURIs: []string{"https://x/callback"}},
-			&api.ClientInfo{Id: "fleetcom", Name: "fleetcom", RedirectUris: []string{"https://x/callback"}}
+		return v1.ClientParameters{Name: bffID, RedirectURIs: []string{bffCallback}},
+			&api.ClientInfo{Id: bffID, Name: bffID, RedirectUris: []string{bffCallback}}
 	}
 	cases := map[string]struct {
 		mutate func(*v1.ClientParameters, *api.ClientInfo)
 		want   bool
 	}{
 		"UnsetIsNotManaged": {func(s *v1.ClientParameters, e *api.ClientInfo) {
-			e.PostLogoutRedirectUris = []string{"https://x/signed-out"}
-			e.RefreshTokenLifetime = "session"
+			e.PostLogoutRedirectUris = []string{bffLoggedOut}
+			e.RefreshTokenLifetime = lifetimeSession
 		}, true},
 		"PostLogoutMatches": {func(s *v1.ClientParameters, e *api.ClientInfo) {
-			s.PostLogoutRedirectURIs = []string{"https://x/signed-out"}
-			e.PostLogoutRedirectUris = []string{"https://x/signed-out"}
+			s.PostLogoutRedirectURIs = []string{bffLoggedOut}
+			e.PostLogoutRedirectUris = []string{bffLoggedOut}
 		}, true},
 		"PostLogoutDrift": {func(s *v1.ClientParameters, e *api.ClientInfo) {
-			s.PostLogoutRedirectURIs = []string{"https://x/signed-out"}
+			s.PostLogoutRedirectURIs = []string{bffLoggedOut}
 		}, false},
 		"LifetimeMatches": {func(s *v1.ClientParameters, e *api.ClientInfo) {
-			s.RefreshTokenLifetime = "session"
-			e.RefreshTokenLifetime = "session"
+			s.RefreshTokenLifetime = lifetimeSession
+			e.RefreshTokenLifetime = lifetimeSession
 		}, true},
 		"LifetimeDrift": {func(s *v1.ClientParameters, e *api.ClientInfo) {
-			s.RefreshTokenLifetime = "session"
+			s.RefreshTokenLifetime = lifetimeSession
 		}, false},
 		"StandaloneIsDexDefault": {func(s *v1.ClientParameters, e *api.ClientInfo) {
-			s.RefreshTokenLifetime = "standalone"
+			s.RefreshTokenLifetime = lifetimeStandalone
 		}, true},
 	}
 	for name, tc := range cases {
@@ -217,18 +231,19 @@ func TestIsClientUpToDateLogoutFields(t *testing.T) {
 }
 
 func TestUpdateRequest(t *testing.T) {
-	spec := v1.ClientParameters{Name: "fleetcom", RedirectURIs: []string{"https://x/callback"}}
-	req := updateRequest("fleetcom", spec)
-	if req.RefreshTokenLifetime != nil || req.PostLogoutRedirectUris != nil {
-		t.Errorf("unset fields must stay out of the request, got lifetime=%v uris=%v", req.RefreshTokenLifetime, req.PostLogoutRedirectUris)
+	spec := v1.ClientParameters{Name: bffID, RedirectURIs: []string{bffCallback}}
+	req := updateRequest(bffID, spec)
+	if req.RefreshTokenLifetime != nil || len(req.GetPostLogoutRedirectUris()) != 0 {
+		t.Errorf("unset fields must stay out of the request, got lifetime=%q uris=%v",
+			req.GetRefreshTokenLifetime(), req.GetPostLogoutRedirectUris())
 	}
-	spec.RefreshTokenLifetime = "session"
-	spec.PostLogoutRedirectURIs = []string{"https://x/signed-out"}
-	req = updateRequest("fleetcom", spec)
-	if req.GetRefreshTokenLifetime() != "session" || req.RefreshTokenLifetime == nil {
-		t.Errorf("lifetime not sent: %v", req.RefreshTokenLifetime)
+	spec.RefreshTokenLifetime = lifetimeSession
+	spec.PostLogoutRedirectURIs = []string{bffLoggedOut}
+	req = updateRequest(bffID, spec)
+	if req.RefreshTokenLifetime == nil || req.GetRefreshTokenLifetime() != lifetimeSession {
+		t.Errorf("lifetime not sent: %q", req.GetRefreshTokenLifetime())
 	}
-	if len(req.GetPostLogoutRedirectUris()) != 1 || req.GetId() != "fleetcom" || req.GetName() != "fleetcom" {
-		t.Errorf("unexpected request: %+v", req)
+	if len(req.GetPostLogoutRedirectUris()) != 1 || req.GetId() != bffID || req.GetName() != bffID {
+		t.Errorf("unexpected request: id=%q name=%q uris=%v", req.GetId(), req.GetName(), req.GetPostLogoutRedirectUris())
 	}
 }

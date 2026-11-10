@@ -461,15 +461,26 @@ func updateRequest(id string, spec v1.ClientParameters) *api.UpdateClientReq {
 	return req
 }
 
+// The refresh token lifetimes Dex knows; it reports its default, standalone, as "".
+const (
+	lifetimeStandalone = "standalone"
+	lifetimeSession    = "session"
+)
+
 // refreshTokenLifetimeOrDefault is the lifetime Dex applies: empty means standalone.
 func refreshTokenLifetimeOrDefault(l string) string {
 	if l == "" {
-		return "standalone"
+		return lifetimeStandalone
 	}
 	return l
 }
 
 func isClientUpToDate(spec v1.ClientParameters, existing *api.ClientInfo) bool {
+	return coreFieldsUpToDate(spec, existing) && optionalFieldsUpToDate(spec, existing)
+}
+
+// coreFieldsUpToDate compares the fields the provider always manages.
+func coreFieldsUpToDate(spec v1.ClientParameters, existing *api.ClientInfo) bool {
 	if spec.Name != existing.GetName() {
 		return false
 	}
@@ -485,9 +496,12 @@ func isClientUpToDate(spec v1.ClientParameters, existing *api.ClientInfo) bool {
 	if !reflect.DeepEqual(spec.TrustedPeers, existing.GetTrustedPeers()) {
 		return false
 	}
-	if !reflect.DeepEqual(spec.AllowedGroups, existing.GetAllowedGroups()) {
-		return false
-	}
+	return reflect.DeepEqual(spec.AllowedGroups, existing.GetAllowedGroups())
+}
+
+// optionalFieldsUpToDate compares the fields the provider manages only when the spec sets
+// them.
+func optionalFieldsUpToDate(spec v1.ClientParameters, existing *api.ClientInfo) bool {
 	// ssoSharedWith is only managed when the spec names at least one client.
 	//
 	// The gRPC API cannot express "explicitly share with nobody": a repeated
