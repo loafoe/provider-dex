@@ -1,0 +1,6 @@
+apiVersion: dex.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  endpoint: "dex.iam-dex.svc.cluster.local:5557"

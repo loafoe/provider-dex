@@ -1,0 +1,17 @@
+apiVersion: oauth.dex.crossplane.io/v1
+kind: Client
+metadata:
+  name: grafana
+  namespace: monitoring
+spec:
+  forProvider:
+    id: grafana
+    name: "Grafana"
+    redirectURIs:
+      - "https://grafana.obs-us-east-ct.hsp.philips.com/login/generic_oauth"
+    public: false
+  providerConfigRef:
+    name: default
+    kind: ProviderConfig
+  writeConnectionSecretToRef:
+    name: grafana-sso-creds

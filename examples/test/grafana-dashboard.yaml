@@ -1,0 +1,32 @@
+apiVersion: oss.grafana.m.crossplane.io/v1alpha1
+kind: Dashboard
+metadata:
+  name: test-dashboard
+  namespace: monitoring
+spec:
+  forProvider:
+    configJson: |
+      {
+        "title": "Test Dashboard",
+        "panels": [
+          {
+            "title": "Test Panel Changed",
+            "type": "text",
+            "options": {
+              "content": "Hello Crossplane!"
+            },
+            "gridPos": {
+              "h": 8,
+              "w": 12,
+              "x": 0,
+              "y": 0
+            }
+          }
+        ],
+        "schemaVersion": 36,
+        "version": 1
+      }
+    overwrite: true
+  providerConfigRef:
+    kind: ProviderConfig
+    name: default

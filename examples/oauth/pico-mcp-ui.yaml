@@ -1,0 +1,17 @@
+apiVersion: oauth.dex.crossplane.io/v1
+kind: Client
+metadata:
+  name: pico-mcp-ui
+  namespace: monitoring
+spec:
+  forProvider:
+    id: pico-mcp-ui
+    name: Pico MCP UI
+    public: false
+    redirectURIs:
+    - https://pico-mcp-ui.dip-ce-k3s-eu.hsp.philips.com
+  providerConfigRef:
+    kind: ProviderConfig
+    name: default
+  writeConnectionSecretToRef:
+    name: pico-mcp-ui-creds
